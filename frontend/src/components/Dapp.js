@@ -3,6 +3,7 @@ import React from "react";
 // We'll use ethers to interact with the Ethereum network and our contract
 import { ethers } from "ethers";
 
+// DEFINE THE CONTRACT'S ADDRESS AND ABI
 // We import the contract's artifacts and address here, as we are going to be using them with ethers
 import TokenArtifact from "../contracts/Token.json";
 import contractAddress from "../contracts/contract-address.json";
@@ -16,12 +17,25 @@ import { Transfer } from "./Transfer";
 import { TransactionErrorMessage } from "./TransactionErrorMessage";
 import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { NoTokensMessage } from "./NoTokensMessage";
+import { FindRandomGame } from "./FindRandomGame";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
 
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
+
+
+const COLORS_DATA = [
+  { name: "Red", hex: "#FF0000" },
+  { name: "Green", hex: "#00FF00" },
+  { name: "Blue", hex: "#0000FF" },
+  { name: "Yellow", hex: "#FFFF00" },
+  { name: "Black", hex: "#000000" },
+  { name: "White", hex: "#FFFFFF" }
+];
+
+
 
 // This component is in charge of doing these things:
 //   1. It connects to the user's wallet
@@ -49,6 +63,7 @@ export class Dapp extends React.Component {
       txBeingSent: undefined,
       transactionError: undefined,
       networkError: undefined,
+      colorsData: COLORS_DATA,
     };
 
     this.state = this.initialState;
@@ -147,12 +162,23 @@ export class Dapp extends React.Component {
               The component doesn't have logic, it just calls the transferTokens callback.
             */}
             {this.state.balance.gt(0) && (
-              <Transfer
-                transferTokens={(to, amount) =>
+              <>
+                <Transfer
+                  transferTokens={(to, amount) =>
                   this._transferTokens(to, amount)
                 }
                 tokenSymbol={this.state.tokenData.symbol}
-              />
+                />
+
+                <hr />
+
+                <FindRandomGame
+                  findRandomGameFunction={() => this._findRandomGame()}
+                />
+
+              
+              </>
+
             )}
           </div>
         </div>
@@ -216,7 +242,8 @@ export class Dapp extends React.Component {
     // Fetching the token data and the user's balance are specific to this
     // sample project, but you can reuse the same initialization pattern.
     this._initializeEthers();
-    this._getTokenData();
+    this._getDataFromContract();
+    this._verifyColors();
     this._startPollingData();
   }
 
@@ -224,9 +251,8 @@ export class Dapp extends React.Component {
     // We first initialize ethers by creating a provider using window.ethereum
     this._ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
 
-    // Then, we initialize the contract using that provider and the token's
-    // artifact. You can do this same thing with your contracts.
-    this._token = new ethers.Contract(
+    // Then, we initialize the contract using that provider and the token's artifact. You can do this same thing with your contracts.
+    this._contract = new ethers.Contract(
       contractAddress.Token,
       TokenArtifact.abi,
       this._ethersProvider.getSigner(0)
@@ -254,15 +280,40 @@ export class Dapp extends React.Component {
 
   // The next two methods just read from the contract and store the results
   // in the component state.
-  async _getTokenData() {
-    const name = await this._token.name();
-    const symbol = await this._token.symbol();
+  async _getDataFromContract() {
+    const name = await this._contract.name();
+    const symbol = await this._contract.symbol();
 
     this.setState({ tokenData: { name, symbol } });
   }
 
+  // Function to verify that the colors from the contract match COLORS_DATA
+  async _verifyColors() {
+
+    try {
+      // get colors from the contract
+      const onChainColors = await this._contract.getColors();
+
+      // Check if the length of colors matches
+      if (onChainColors.length !== COLORS_DATA.length) {
+        throw new Error("Color arrays do not match in length");
+      }
+
+      // Check if each color matches in name and order
+      for (let i = 0; i < onChainColors.length; i++) {
+        if (onChainColors[i] !== COLORS_DATA[i].name) {
+          throw new Error(`Color mismatch at index ${i}: ${onChainColors[i]} !== ${COLORS_DATA[i].name}`);
+        }
+      }
+
+      console.log("Check successful! All colors match!");
+    } catch (error) {
+      console.error("Error verifying colors:", error);
+    }
+  }
+
   async _updateBalance() {
-    const balance = await this._token.balanceOf(this.state.selectedAddress);
+    const balance = await this._contract.balanceOf(this.state.selectedAddress);
     this.setState({ balance });
   }
 
@@ -291,7 +342,7 @@ export class Dapp extends React.Component {
 
       // We send the transaction, and save its hash in the Dapp's state. This
       // way we can indicate that we are waiting for it to be mined.
-      const tx = await this._token.transfer(to, amount);
+      const tx = await this._contract.transfer(to, amount);
       this.setState({ txBeingSent: tx.hash });
 
       // We use .wait() to wait for the transaction to be mined. This method
@@ -315,8 +366,7 @@ export class Dapp extends React.Component {
         return;
       }
 
-      // Other errors are logged and stored in the Dapp's state. This is used to
-      // show them to the user, and for debugging.
+      // Other errors are logged and stored in the Dapp's state. This is used to show them to the user, and for debugging.
       console.error(error);
       this.setState({ transactionError: error });
     } finally {
@@ -365,5 +415,11 @@ export class Dapp extends React.Component {
     if (window.ethereum.networkVersion !== HARDHAT_NETWORK_ID) {
       this._switchChain();
     }
+  }
+
+
+
+  _findRandomGame() {
+    this._contract.findRandomGame();
   }
 }

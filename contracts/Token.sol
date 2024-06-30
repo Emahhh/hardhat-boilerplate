@@ -1,78 +1,252 @@
 //SPDX-License-Identifier: UNLICENSED
 
-// Solidity files have to start with this pragma.
-// It will be used by the Solidity compiler to validate its version.
 pragma solidity ^0.8.9;
 
-// We import this library to be able to use console.log
 import "hardhat/console.sol";
 
 
-// This is the main building block for smart contracts.
-contract Token {
-    // Some string type variables to identify the token.
-    string public name = "MasterMind Token";
-    string public symbol = "MMT";
+contract Mastermind {
+    // Game parameters
+    uint public constant N = 4; // Number of colors in the code
+    uint public constant M = 6; // Number of possible colors
+    uint public constant NT = 10; // Number of turns
+    uint public constant NG = 12; // Number of guesses per turn
+    uint public constant K = 5; // Extra points for unbroken code
+    uint public constant DISPUTE_SECONDS = 10; //TDisp
 
-    // The fixed amount of tokens stored in an unsigned integer type variable.
-    uint256 public totalSupply = 100;
+    enum GameState { Created, Joined, InProgress, Ended }
+    enum PlayerRole { None, CodeMaker, CodeBreaker }
+    enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
+    WaitingForDispute }
 
-    // An address type variable is used to store ethereum accounts.
-    address public owner;
-
-    // A mapping is a key/value map. Here we store each account balance.
-    mapping(address => uint256) balances;
-
-    // The Transfer event helps off-chain aplications understand
-    // what happens within your contract.
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-
-    /**
-     * Contract initialization.
-     */
-    constructor() {
-        // The totalSupply is assigned to the transaction sender, which is the
-        // account that is deploying the contract.
-        balances[msg.sender] = totalSupply;
-        owner = msg.sender;
+    string[] public colors = ["Red", "Green", "Blue", "Yellow", "Black", "White"];
+    function getColors() public view returns (string[] memory) {
+        return colors;
     }
 
-    /**
-     * A function to transfer tokens.
-     *
-     * The `external` modifier makes a function *only* callable from outside
-     * the contract.
-     */
-    function transfer(address to, uint256 amount) external {
-        // Check if the transaction sender has enough tokens.
-        // If `require`'s first argument evaluates to `false` then the
-        // transaction will revert.
-        require(balances[msg.sender] >= amount, "Not enough tokens");
-
-        // We can print messages and values using console.log, a feature of
-        // Hardhat Network:
-        console.log(
-            "Transferring from %s to %s %s tokens",
-            msg.sender,
-            to,
-            amount
-        );
-
-        // Transfer the amount.
-        balances[msg.sender] -= amount;
-        balances[to] += amount;
-
-        // Notify off-chain applications of the transfer.
-        emit Transfer(msg.sender, to, amount);
+    struct Game {
+        address creator;
+        address opponent;
+        uint256 stake;
+        bytes32 secretHash;
+        string[] secretCode;
+        uint256 codeBreakerScore;
+        uint256 codeMakerScore;
+        GameState state;
+        TurnPhase phase;
+        PlayerRole currentRole;
+        string[NG] currentTurnGuesses;
+        Feedback[NG] currentTurnFeedbacks;
     }
 
-    /**
-     * Read only function to retrieve the token balance of a given account.
-     *
-     * The `view` modifier indicates that it doesn't modify the contract's
-     * state, which allows us to call it without executing a transaction.
-     */
-    function balanceOf(address account) external view returns (uint256) {
-        return balances[account];
+    struct Feedback {
+        uint256 correctColorAndPositionFeedback;
+        uint256 correctColorWrongPositionFeedback;
     }
+
+    mapping(uint => Game) public games;
+    uint public gameCount;
+
+    event GameCreated(uint gameId, address creator);
+    event GameJoined(uint gameId, address opponent);
+    event GameStarted(uint gameId);
+    event CodeCommitted(uint gameId, bytes32 secretHash);
+    event CodeGuessed(uint gameId, string[] guess);
+    event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
+    event CodeRevealed(uint gameId, string[] secretCode);
+    event GameEnded(uint gameId, address winner);
+
+
+    // MODIFIERS --------------
+
+    modifier onlyCreator(uint gameId) {
+        require(msg.sender == games[gameId].creator, "Only creator can call this function");
+        _;
+    }
+
+    modifier onlyOpponent(uint gameId) {
+        require(msg.sender == games[gameId].opponent, "Only opponent can call this function");
+        _;
+    }
+
+    modifier onlyPlayers(uint gameId) {
+        require(msg.sender == games[gameId].creator || msg.sender == games[gameId].opponent, "Only players can call this function");
+        _;
+    }
+
+    modifier inState(uint gameId, GameState _state) {
+        require(games[gameId].state == _state, "Invalid game state");
+        _;
+    }
+
+    modifier inPhase(uint gameId, TurnPhase _phase) {
+        require(games[gameId].phase == _phase, "Invalid game phase");
+        _;
+    }
+
+    // END OF MODIFIERS -------
+
+
+    // il giocatore paga e quella è la stake (?)
+    function createGame() external payable {
+        require(msg.value > 0, "Stake must be greater than 0");
+
+        string[] storage ctg;
+        Feedback[] storage fbg;
+
+        for (uint32 i=0; i < NG; i++) {
+            ctg[i] = " ";
+            ctg[i] = " ";
+        }
+
+        gameCount++;
+        games[gameCount] = Game({
+            creator: msg.sender,
+            opponent: address(0),
+            stake: msg.value,
+            secretHash: bytes32(0),
+            secretCode: new string[](N),
+            codeBreakerScore: 0,
+            codeMakerScore: 0,
+            state: GameState.Created,
+            phase: TurnPhase.Commit,
+            currentRole: PlayerRole.None,
+            currentTurnGuesses: ctg,
+            currentTurnFeedbacks: fbg
+        });
+        
+
+        emit GameCreated(gameCount, msg.sender);
+    }
+
+
+    // al giocatore deve andare bene quella stake
+    // TODO: mostrare la stake prima di partire
+    function joinGame(uint gameId) external payable inState(gameId, GameState.Created) {
+        Game storage game = games[gameId];
+        require(msg.value == game.stake, "Stake must match the creator's stake");
+
+        game.opponent = msg.sender;
+        game.state = GameState.Joined;
+
+        emit GameJoined(gameId, msg.sender);
+    }
+
+    function startGame(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.Joined) {
+        Game storage game = games[gameId];
+
+        // Randomly select roles
+        if (block.timestamp % 2 == 0) {
+            game.currentRole = PlayerRole.CodeMaker;
+        } else {
+            game.currentRole = PlayerRole.CodeBreaker;
+        }
+
+        game.state = GameState.InProgress;
+        emit GameStarted(gameId);
+    }
+
+    function commitSecretCode(uint gameId, bytes32 secretHash) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Commit) {
+        Game storage game = games[gameId];
+        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can commit the code");
+
+        game.secretHash = secretHash;
+        game.phase = TurnPhase.Guess;
+
+        emit CodeCommitted(gameId, secretHash);
+    }
+
+    function makeGuess(uint gameId, string[] memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
+        Game storage game = games[gameId];
+        // TODO: what if the codemaker tries to call thid function? build a test case on it
+        require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can make guesses");
+        require(guess.length == N, "Invalid guess length");
+
+        game.currentTurnGuesses[99] = guess;
+        game.phase = TurnPhase.Feedback;
+
+        emit CodeGuessed(gameId, guess);
+    }
+
+    
+    function giveFeedback(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
+        Game storage game = games[gameId];
+        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can give feedback");
+
+        // TODO: Validate feedback
+
+        game.currentTurnFeedbacks.push(Feedback(correctColorAndPosition, correctColorWrongPosition));
+
+        if (game.currentTurnFeedbacks.length >= NG) {
+            game.phase = TurnPhase.Reveal;
+        } else if (correctColorAndPosition == N) {
+            console.log ("According to the feedback, the code is correct!");
+            game.phase = TurnPhase.Reveal;
+        }
+
+        emit FeedbackGiven(gameId, correctColorAndPosition, correctColorWrongPosition);
+    }
+
+    function revealCode(uint gameId, string[] memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {
+        Game storage game = games[gameId];
+        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can reveal the code");
+
+        require(keccak256(abi.encodePacked(secretCode)) == game.secretHash, "This secret code doesn't match the hash submitted initially! Did you try to cheat?");
+
+        game.secretCode = secretCode;
+        game.phase = TurnPhase.WaitingForDispute;
+
+        emit CodeRevealed(gameId, secretCode);
+        // TODO: call endTurn(gameId)? maybe after the second for dispute
+        // call endTurn after DISPUTE_SECONDS
+
+    }
+
+    // fa la disputa ad un certo feedback, controlla e da i soldi a chi ha ragione
+    // TODO: implement
+    function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inState(gameId, TurnPhase.WaitingForDispute) {
+        Game storage game = games[gameId];
+        require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can dispute");
+
+        // TODO: end the whole game
+    }
+
+    // assigns the points, ends this turn and prepares the next turn
+    // TODO: il client del codebreaker mnostrerà 2 bottoni: disputa o finisci turno
+    function endTurn(uint gameId) external onlyPlayers(gameId) inState(gameId, TurnPhase.WaitingForDispute) {
+        Game storage game = games[gameId];
+
+        // Calculate points and update scores
+        // TODO: what if the codemaker cheated and didnt say anything when they guessed?
+        if(game.currentTurnFeedbacks.pop()[0] == N) {
+            game.codeMakerScore++;
+        } else {
+            game.codeBreakerScore++;
+        }
+
+        // reset guesses and feedbacks
+        game.currentTurnGuesses = new uint[](NG);
+        game.currentTurnFeedbacks = new Feedback[](NG);
+
+        // Swap roles
+        if (game.currentRole == PlayerRole.CodeMaker) {
+            game.currentRole = PlayerRole.CodeBreaker;
+        } else {
+            game.currentRole = PlayerRole.CodeMaker;
+        }
+
+        if (game.codeBreakerScore + game.codeMakerScore >= NT) {
+            game.state = GameState.Ended;
+            address winner = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
+            emit GameEnded(gameId, winner);
+        } else {
+            game.phase = TurnPhase.Commit;
+        }
+    }
+
+    function accuseAFK(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.InProgress) {
+        // Implement AFK accusation logic
+    }
+
+    // Add additional functions as needed
 }
