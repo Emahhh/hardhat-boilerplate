@@ -3,14 +3,12 @@ import React from "react";
 // We'll use ethers to interact with the Ethereum network and our contract
 import { ethers } from "ethers";
 
-// We import the contract's artifacts and address here, as we are going to be
-// using them with ethers
+// We import the contract's artifacts and address here, as we are going to be using them with ethers
 import TokenArtifact from "../contracts/Token.json";
 import contractAddress from "../contracts/contract-address.json";
 
-// All the logic of this dapp is contained in the Dapp component.
-// These other components are just presentational ones: they don't have any
-// logic. They just render HTML.
+// HTML COMPONENTS
+// All the logic of this dapp is contained in the Dapp component. These other components are just presentational ones: they don't have any logic. They just render HTML.
 import { NoWalletDetected } from "./NoWalletDetected";
 import { ConnectWallet } from "./ConnectWallet";
 import { Loading } from "./Loading";
@@ -57,12 +55,14 @@ export class Dapp extends React.Component {
   }
 
   render() {
+    // CHECK IF A WALLET IS INSTALLED
     // Ethereum wallets inject the window.ethereum object. If it hasn't been
     // injected, we instruct the user to install a wallet.
     if (window.ethereum === undefined) {
       return <NoWalletDetected />;
     }
 
+    // ASK TO CONNECT TO THE USER'S WALLET
     // The next thing we need to do, is to ask the user to connect their wallet.
     // When the wallet gets connected, we are going to save the users's address
     // in the component's state. So, if it hasn't been saved yet, we have
@@ -80,12 +80,14 @@ export class Dapp extends React.Component {
       );
     }
 
+    // SHOW LOADING
     // If the token data or the user's balance hasn't loaded yet, we show
     // a loading component.
     if (!this.state.tokenData || !this.state.balance) {
       return <Loading />;
     }
 
+    // MAIN APP
     // If everything is loaded, we render the application.
     return (
       <div className="container p-4">
@@ -109,8 +111,7 @@ export class Dapp extends React.Component {
         <div className="row">
           <div className="col-12">
             {/* 
-              Sending a transaction isn't an immediate action. You have to wait
-              for it to be mined.
+              Sending a transaction isn't an immediate action. You have to wait for it to be mined.
               If we are waiting for one, we show a message here.
             */}
             {this.state.txBeingSent && (
@@ -133,6 +134,7 @@ export class Dapp extends React.Component {
         <div className="row">
           <div className="col-12">
             {/*
+              NO TOKENS MESSAGE
               If the user has no tokens, we don't show the Transfer form
             */}
             {this.state.balance.eq(0) && (
@@ -140,10 +142,9 @@ export class Dapp extends React.Component {
             )}
 
             {/*
-              This component displays a form that the user can use to send a 
-              transaction and transfer some tokens.
-              The component doesn't have logic, it just calls the transferTokens
-              callback.
+              TRANSFER FORM
+              This component displays a form that the user can use to send a transaction and transfer some tokens.
+              The component doesn't have logic, it just calls the transferTokens callback.
             */}
             {this.state.balance.gt(0) && (
               <Transfer
@@ -164,6 +165,12 @@ export class Dapp extends React.Component {
     // gets unmounted
     this._stopPollingData();
   }
+
+
+
+
+
+
 
   async _connectWallet() {
     // This method is run when the user clicks the Connect. It connects the
@@ -215,14 +222,14 @@ export class Dapp extends React.Component {
 
   async _initializeEthers() {
     // We first initialize ethers by creating a provider using window.ethereum
-    this._provider = new ethers.providers.Web3Provider(window.ethereum);
+    this._ethersProvider = new ethers.providers.Web3Provider(window.ethereum);
 
     // Then, we initialize the contract using that provider and the token's
     // artifact. You can do this same thing with your contracts.
     this._token = new ethers.Contract(
       contractAddress.Token,
       TokenArtifact.abi,
-      this._provider.getSigner(0)
+      this._ethersProvider.getSigner(0)
     );
   }
 
