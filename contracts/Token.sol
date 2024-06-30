@@ -29,12 +29,13 @@ contract Mastermind {
         address opponent;
         uint256 stake;
         bytes32 secretHash;
-        string[] secretCode;
+        string secretCode;
         uint256 codeBreakerScore;
         uint256 codeMakerScore;
         GameState state;
         TurnPhase phase;
         PlayerRole currentRole;
+        uint256 guessesCounter;
         string[NG] currentTurnGuesses;
         Feedback[NG] currentTurnFeedbacks;
     }
@@ -51,9 +52,9 @@ contract Mastermind {
     event GameJoined(uint gameId, address opponent);
     event GameStarted(uint gameId);
     event CodeCommitted(uint gameId, bytes32 secretHash);
-    event CodeGuessed(uint gameId, string[] guess);
+    event CodeGuessed(uint gameId, string guess);
     event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
-    event CodeRevealed(uint gameId, string[] secretCode);
+    event CodeRevealed(uint gameId, string secretCode);
     event GameEnded(uint gameId, address winner);
 
 
@@ -91,31 +92,30 @@ contract Mastermind {
     function createGame() external payable {
         require(msg.value > 0, "Stake must be greater than 0");
 
-        string[] storage ctg;
-        Feedback[] storage fbg;
 
-        for (uint32 i=0; i < NG; i++) {
-            ctg[i] = " ";
-            ctg[i] = " ";
-        }
 
         gameCount++;
-        games[gameCount] = Game({
-            creator: msg.sender,
-            opponent: address(0),
-            stake: msg.value,
-            secretHash: bytes32(0),
-            secretCode: new string[](N),
-            codeBreakerScore: 0,
-            codeMakerScore: 0,
-            state: GameState.Created,
-            phase: TurnPhase.Commit,
-            currentRole: PlayerRole.None,
-            currentTurnGuesses: ctg,
-            currentTurnFeedbacks: fbg
-        });
-        
+        Game memory myGame;
 
+        myGame.creator= msg.sender;
+        myGame.opponent= address(0);
+        myGame.stake= msg.value;
+        myGame.secretHash= bytes32(0);
+        myGame.secretCode = " ";
+        myGame.codeBreakerScore= 0;
+        myGame.codeMakerScore= 0;
+        myGame.state= GameState.Created;
+        myGame.phase= TurnPhase.Commit;
+        myGame.currentRole= PlayerRole.None;
+        myGame.guessesCounter= 0;
+
+        // for (uint32 i=0; i < NG; i++) {
+        //     myGame.currentTurnFeedbacks[i] = Feedback(0, 0);
+        //     myGame.currentTurnGuesses[i] = " ";
+        // }
+
+        games[gameCount] = myGame;         
+        
         emit GameCreated(gameCount, msg.sender);
     }
 
@@ -156,13 +156,16 @@ contract Mastermind {
         emit CodeCommitted(gameId, secretHash);
     }
 
-    function makeGuess(uint gameId, string[] memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
+    function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
         require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can make guesses");
-        require(guess.length == N, "Invalid guess length");
 
-        game.currentTurnGuesses[99] = guess;
+        // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
+        // require(guess.length == N, "Invalid guess length");
+
+        game.currentTurnGuesses[game.guessesCounter] = guess;
+        game.guessesCounter++;
         game.phase = TurnPhase.Feedback;
 
         emit CodeGuessed(gameId, guess);
@@ -175,7 +178,7 @@ contract Mastermind {
 
         // TODO: Validate feedback
 
-        game.currentTurnFeedbacks.push(Feedback(correctColorAndPosition, correctColorWrongPosition));
+        game.currentTurnFeedbacks[game.guessesCounter-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
 
         if (game.currentTurnFeedbacks.length >= NG) {
             game.phase = TurnPhase.Reveal;
@@ -187,11 +190,11 @@ contract Mastermind {
         emit FeedbackGiven(gameId, correctColorAndPosition, correctColorWrongPosition);
     }
 
-    function revealCode(uint gameId, string[] memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {
+    function revealCode(uint gameId, string memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {
         Game storage game = games[gameId];
         require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can reveal the code");
 
-        require(keccak256(abi.encodePacked(secretCode)) == game.secretHash, "This secret code doesn't match the hash submitted initially! Did you try to cheat?");
+        require(keccak256(bytes(secretCode)) == game.secretHash, "This secret code doesn't match the hash submitted initially! Did you try to cheat?");
 
         game.secretCode = secretCode;
         game.phase = TurnPhase.WaitingForDispute;
@@ -204,7 +207,7 @@ contract Mastermind {
 
     // fa la disputa ad un certo feedback, controlla e da i soldi a chi ha ragione
     // TODO: implement
-    function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inState(gameId, TurnPhase.WaitingForDispute) {
+    function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
         require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can dispute");
 
@@ -213,20 +216,22 @@ contract Mastermind {
 
     // assigns the points, ends this turn and prepares the next turn
     // TODO: il client del codebreaker mnostrerà 2 bottoni: disputa o finisci turno
-    function endTurn(uint gameId) external onlyPlayers(gameId) inState(gameId, TurnPhase.WaitingForDispute) {
+    function endTurn(uint gameId) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
 
         // Calculate points and update scores
         // TODO: what if the codemaker cheated and didnt say anything when they guessed?
-        if(game.currentTurnFeedbacks.pop()[0] == N) {
+        uint lastGuessIndex = game.guessesCounter - 1;
+        if(game.currentTurnFeedbacks[lastGuessIndex].correctColorAndPositionFeedback == N) {
             game.codeMakerScore++;
         } else {
             game.codeBreakerScore++;
         }
 
         // reset guesses and feedbacks
-        game.currentTurnGuesses = new uint[](NG);
-        game.currentTurnFeedbacks = new Feedback[](NG);
+        // game.currentTurnGuesses = new string[](NG);
+        // game.currentTurnFeedbacks = new Feedback[](NG);
+        game.guessesCounter = 0;
 
         // Swap roles
         if (game.currentRole == PlayerRole.CodeMaker) {
