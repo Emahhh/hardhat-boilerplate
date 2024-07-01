@@ -45,6 +45,7 @@ contract Mastermind {
         uint256 correctColorWrongPositionFeedback;
     }
 
+    // storage for all the different games
     mapping(uint => Game) public games;
     uint public gameCount;
 
@@ -92,10 +93,8 @@ contract Mastermind {
     function createGame() external payable {
         require(msg.value > 0, "Stake must be greater than 0");
 
-
-
         gameCount++;
-        Game memory myGame;
+        Game storage myGame = games[gameCount];
 
         myGame.creator= msg.sender;
         myGame.opponent= address(0);
@@ -113,8 +112,6 @@ contract Mastermind {
         //     myGame.currentTurnFeedbacks[i] = Feedback(0, 0);
         //     myGame.currentTurnGuesses[i] = " ";
         // }
-
-        games[gameCount] = myGame;         
         
         emit GameCreated(gameCount, msg.sender);
     }
