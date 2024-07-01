@@ -250,5 +250,4 @@ contract Mastermind {
         // Implement AFK accusation logic
     }
 
-    // Add additional functions as needed
 }
