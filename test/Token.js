@@ -31,7 +31,7 @@ describe("Token contract", function () {
   // We define a fixture to reuse the same setup in every test. We use
   // loadFixture to run this setup once, snapshot that state, and reset Hardhat
   // Network to that snapshot in every test.
-  async function deployTokenFixture() {
+  async function deployGameFicture() {
     // Get the ContractFactory and Signers here.
     const Mastermind = await ethers.getContractFactory("Mastermind");
     const [owner, addr1, addr2] = await ethers.getSigners();
@@ -50,7 +50,7 @@ describe("Token contract", function () {
   describe("Colors", function () {
 
     it("Should return some colors", async function () {
-      const { hardhatContract, owner } = await loadFixture(deployTokenFixture);
+      const { hardhatContract, owner } = await loadFixture(deployGameFicture);
       try {
         const colors = await hardhatContract.getColors();
         console.log("Colors returned by getColors:", colors);
@@ -70,15 +70,54 @@ describe("Token contract", function () {
     // `it` is another Mocha function. This is the one you use to define your  tests. It receives the test name, and a callback function. If the callback function is async, Mocha will `await` it.
     it("Number of games should initially be zero", async function () {
       // We use loadFixture to setup our environment, and then assert that things went well
-      const { hardhatContract, owner } = await loadFixture(deployTokenFixture);
+      const { hardhatContract, owner } = await loadFixture(deployGameFicture);
 
       expect(await hardhatContract.games.length).to.equal(0);
     });
 
-    
+
   });
 
 
+  describe("Game creation", function () {
+    it("Should raise exception, because stake must be greater than 0", async function () {
+      const { hardhatContract, owner } = await loadFixture(deployGameFicture);
+      try {
+        await hardhatContract.createGame();
+      } catch (error) {
+        expect(error.message).to.contain("Stake must be greater than 0");
+      }
+
+    });
+
+
+    it("Should create a game and change Ether balances", async function () {
+      const { hardhatContract, owner } = await loadFixture(deployGameFicture);
+      const depositAmount = ethers.utils.parseEther("1.0");  // 1 Ether
+
+      // Get the initial balance
+      const initialOwnerBalance = await ethers.provider.getBalance(owner.address);
+      const initialContractBalance = await ethers.provider.getBalance(hardhatContract.address);
+
+      // Perform the transaction, paying a deposit amount
+      const tx = await hardhatContract.createGame({ value: depositAmount });
+      const receipt = await tx.wait();
+
+      // Get the final balance
+      const finalContractBalance = await ethers.provider.getBalance(hardhatContract.address);
+
+      expect(finalContractBalance).to.equal(depositAmount);
+
+      // Check for event emission
+      await expect(tx).to.emit(hardhatContract, "GameCreated").withArgs(1, owner.address);
+  });
+
+  
+  });
 
 
 });
+
+
+
+
