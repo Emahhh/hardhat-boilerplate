@@ -53,6 +53,7 @@ export class Dapp extends React.Component {
       contractName: undefined,
       txBeingSent: false,
       gameState: undefined,
+      colorsVerified: false,
     };
 
     this.state = this.initialState;
@@ -82,7 +83,7 @@ export class Dapp extends React.Component {
     // SHOW LOADING
     // se ancora non sono state caricate queste cose, mostrare loading
     // TODO: decidere cosa aspettare 
-    if (!this.colorsData) {
+    if (this.colorsVerified === false) {
       return <Loading />;
     }
 
@@ -241,6 +242,7 @@ export class Dapp extends React.Component {
       }
 
       console.log("Check successful! All colors match!");
+      this.state.colorsVerified = true;
     } catch (error) {
       console.error("Error verifying colors:", error);
     }

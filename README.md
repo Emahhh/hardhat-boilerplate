@@ -8,19 +8,21 @@
 First thing: install dependencies
 
 ```sh
-# while in root
+# while in the root of the project
 pnpm install
 ```
 
 Once installed, let's run Hardhat's testing network:
 
 ```sh
+# while in the root of the project
 npx hardhat node
 ```
 
 Then, on a new terminal, go to the repository's root folder and run this to deploy the contract:
 
 ```sh
+# while in the root of the project
 npx hardhat run scripts/deploy.js --network localhost
 ```
 
