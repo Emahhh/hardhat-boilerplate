@@ -6,6 +6,8 @@ import "hardhat/console.sol";
 
 
 contract Mastermind {
+    string public constant name = "Mastermind";
+
     // Game parameters
     uint public constant N = 4; // Number of colors in the code
     uint public constant M = 6; // Number of possible colors

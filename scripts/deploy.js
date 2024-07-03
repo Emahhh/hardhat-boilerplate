@@ -22,17 +22,17 @@ async function main() {
 
   console.log("Account balance:", (await deployer.getBalance()).toString());
 
-  const Token = await ethers.getContractFactory("Token");
-  const token = await Token.deploy();
-  await token.deployed();
+  const Mastermind = await ethers.getContractFactory("Mastermind");
+  const mastermind = await Mastermind.deploy();
+  await mastermind.deployed();
 
-  console.log("Token address:", token.address);
+  console.log("Mastermind contract address:", mastermind.address);
 
   // We also save the contract's artifacts and address in the frontend directory
-  saveFrontendFiles(token);
+  saveFrontendFiles(mastermind);
 }
 
-function saveFrontendFiles(token) {
+function saveFrontendFiles(mastermind) {
   const fs = require("fs");
   const contractsDir = path.join(__dirname, "..", "frontend", "src", "contracts");
 
@@ -42,14 +42,14 @@ function saveFrontendFiles(token) {
 
   fs.writeFileSync(
     path.join(contractsDir, "contract-address.json"),
-    JSON.stringify({ Token: token.address }, undefined, 2)
+    JSON.stringify({ Mastermind: mastermind.address }, undefined, 2)
   );
 
-  const TokenArtifact = artifacts.readArtifactSync("Token");
+  const MastermindArtifact = artifacts.readArtifactSync("Mastermind");
 
   fs.writeFileSync(
-    path.join(contractsDir, "Token.json"),
-    JSON.stringify(TokenArtifact, null, 2)
+    path.join(contractsDir, "Mastermind.json"),
+    JSON.stringify(MastermindArtifact, null, 2)
   );
 }
 
