@@ -16,6 +16,7 @@ import { TransactionErrorMessage } from "./TransactionErrorMessage";
 import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { FindRandomGame } from "./FindRandomGame";
 import { JoinGameWithAddress } from "./JoinGameWithAddress";
+import { WalletInfo } from "./WalletInfo";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -46,7 +47,7 @@ export class Dapp extends React.Component {
 
     // initial state of the dApp
     this.initialState = {
-      selectedAddress: undefined, // The user's address
+      userAddress: undefined, // The user's address
       transactionError: undefined,
       networkError: undefined,
       colorsData: COLORS_DATA,
@@ -70,7 +71,7 @@ export class Dapp extends React.Component {
     // When the wallet gets connected, we are going to save the users's address in the component's state. So, if it hasn't been saved yet, we have to show the ConnectWallet component.
     //
     // Note that we pass it a callback that is going to be called when the user clicks a button. This callback just calls the _connectWallet method.
-    if (!this.state.selectedAddress) {
+    if (!this.state.userAddress) {
       return (
         <ConnectWallet
           connectWallet={() => this._connectWallet()}
@@ -93,6 +94,11 @@ export class Dapp extends React.Component {
       return(
         <div className="row">
           <div className="col-12">
+
+            <WalletInfo
+              provider={this._ethersProvider}
+              account={this.state.userAddress}
+            />
 
             {/* TODO: implement*/}
             <FindRandomGame
@@ -129,6 +135,7 @@ export class Dapp extends React.Component {
 
         <div className="row">
           <div className="col-12">
+
               
             {/*
               WAITING FOR TRANSACTION MESSAGE
@@ -172,14 +179,14 @@ export class Dapp extends React.Component {
   async _connectWallet() {
 
     // To connect to the user's wallet, we have to run this method. It returns a promise that will resolve to the user's address.
-    const [selectedAddress] = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const [userAddress] = await window.ethereum.request({ method: 'eth_requestAccounts' });
 
     // Once we have the address, we can initialize the application.
 
     // First we check the network
     this._checkNetwork();
 
-    this._initialize(selectedAddress);
+    this._initialize(userAddress);
 
     // We reinitialize it whenever the user changes their account.
     window.ethereum.on("accountsChanged", ([newAddress]) => {
@@ -198,7 +205,7 @@ export class Dapp extends React.Component {
 
     // We first store the user's address in the component's state
     this.setState({
-      selectedAddress: userAddress,
+      userAddress: userAddress,
     });
 
     // ETHERS INITIALIZATION
@@ -286,7 +293,7 @@ export class Dapp extends React.Component {
       method: "wallet_switchEthereumChain",
       params: [{ chainId: chainIdHex }],
     });
-    await this._initialize(this.state.selectedAddress);
+    await this._initialize(this.state.userAddress);
   }
 
   // This method checks if the selected network is Localhost:8545

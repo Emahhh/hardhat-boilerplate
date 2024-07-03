@@ -14,6 +14,8 @@ task("faucet", "Sends ETH and tokens to an address")
       );
     }
 
+    console.log("receiver: " + receiver);
+
     const addressesFile =
       __dirname + "/../frontend/src/contracts/contract-address.json";
 
@@ -25,16 +27,14 @@ task("faucet", "Sends ETH and tokens to an address")
     const addressJson = fs.readFileSync(addressesFile);
     const address = JSON.parse(addressJson);
 
-    if ((await ethers.provider.getCode(address.Token)) === "0x") {
+    if ((await ethers.provider.getCode(address.Mastermind)) === "0x") {
       console.error("You need to deploy your contract first");
       return;
     }
 
-    const token = await ethers.getContractAt("Token", address.Token);
+    const token = await ethers.getContractAt("Mastermind", address.Mastermind);
     const [sender] = await ethers.getSigners();
 
-    const tx = await token.transfer(receiver, 100);
-    await tx.wait();
 
     const tx2 = await sender.sendTransaction({
       to: receiver,
