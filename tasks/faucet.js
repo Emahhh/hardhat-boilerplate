@@ -38,9 +38,9 @@ task("faucet", "Sends ETH and tokens to an address")
 
     const tx2 = await sender.sendTransaction({
       to: receiver,
-      value: ethers.constants.WeiPerEther,
+      value: ethers.utils.parseEther("100"),
     });
     await tx2.wait();
 
-    console.log(`Transferred 1 ETH and 100 tokens to ${receiver}`);
+    console.log(`Transferred 100 ETH to ${receiver}`);
   });

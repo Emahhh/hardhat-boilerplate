@@ -28,8 +28,7 @@ export function WalletInfo({ provider, account }) {
     <div>
       <p>Your address is: {account}</p>
       <p>Your balance is: {balance}</p>
-      <p>If your wallet is empty, get some ETH by running this command while in the root of the repository...</p>
-      {/*TODO: add command npx hardhat --network localhost faucet this.state.userAddress */ }
+      <p>If your wallet is empty, get some ETH by running this command while in the root of the repository... <pre>npx hardhat --network localhost faucet {account}</pre></p>
     </div>
 
   );

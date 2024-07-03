@@ -17,6 +17,7 @@ import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { FindRandomGame } from "./FindRandomGame";
 import { JoinGameWithAddress } from "./JoinGameWithAddress";
 import { WalletInfo } from "./WalletInfo";
+import { CreateNewGame } from "./CreateNewGame";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -33,6 +34,12 @@ const COLORS_DATA = [
   { name: "Black", hex: "#000000" },
   { name: "White", hex: "#FFFFFF" }
 ];
+
+const GameStates = Object.freeze({
+  NOT_CREATED: 100,
+  AWAITING_CREATION: 200,
+  CREATED: 300, // created and waiting for an opponent to join
+});
 
 
 
@@ -53,8 +60,9 @@ export class Dapp extends React.Component {
       colorsData: COLORS_DATA,
       contractName: undefined,
       txBeingSent: false,
-      gameState: undefined,
+      gameState: GameStates.NOT_CREATED,
       colorsVerified: false,
+      currentGameID: undefined,
     };
 
     this.state = this.initialState;
@@ -84,20 +92,30 @@ export class Dapp extends React.Component {
     // SHOW LOADING
     // se ancora non sono state caricate queste cose, mostrare loading
     // TODO: decidere cosa aspettare 
-    if (this.colorsVerified === false) {
+    if (this.colorsVerified === false || this.state.gameState === GameStates.AWAITING_CREATION) {
       return <Loading />;
     }
 
-    // JOIN A GAME
+    // JOIN OR CREATE A GAME
     // if there is no game in progress, show buttons to join one
-    if(this.state.gameState === undefined) {
+    if(this.state.gameState === GameStates.NOT_CREATED) {
       return(
         <div className="row">
           <div className="col-12">
 
+
+
             <WalletInfo
               provider={this._ethersProvider}
               account={this.state.userAddress}
+            />
+
+            <CreateNewGame
+              contract={this._contract}
+              ethers={ethers}
+              updateGameState={(gameState) => this.setState({gameState})}
+              updateGameID={(gameID) => this.setState({currentGameID: gameID})}
+              GameStates={GameStates}
             />
 
             {/* TODO: implement*/}
@@ -111,6 +129,19 @@ export class Dapp extends React.Component {
               contract={this._contract}
             />
 
+          </div>
+        </div>
+      );
+    }
+
+    // GAME CREATED, WAIT FOR ANOTHER PLAYER
+    if(this.state.gameState === GameStates.CREATED) {
+      return(
+        <div className="row">
+          <div className="col-12">
+            <h1>Game created!</h1>
+            <p>The game ID is: {this.state.currentGameID}</p>
+            <p>Waiting for another player to join...</p>
           </div>
         </div>
       );

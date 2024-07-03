@@ -90,8 +90,6 @@ contract Mastermind {
 
     // END OF MODIFIERS -------
 
-
-    // il giocatore paga e quella è la stake (?)
     function createGame() external payable {
         require(msg.value > 0, "Stake must be greater than 0");
 
@@ -114,6 +112,8 @@ contract Mastermind {
         //     myGame.currentTurnFeedbacks[i] = Feedback(0, 0);
         //     myGame.currentTurnGuesses[i] = " ";
         // }
+
+        console.log("!!! Game created with ID: ", gameCount);
         
         emit GameCreated(gameCount, msg.sender);
     }

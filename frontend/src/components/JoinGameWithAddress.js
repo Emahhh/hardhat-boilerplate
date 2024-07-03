@@ -9,6 +9,7 @@ export function JoinGameWithAddress({ contract }) {
             return;
         }
         console.log(contract);
+        // TODO: segnala la stake, e manda il giusto amount come stake
         contract.joinGame(address);
     }
 
