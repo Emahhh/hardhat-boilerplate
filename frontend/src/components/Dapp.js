@@ -39,6 +39,7 @@ const GameStates = Object.freeze({
   NOT_CREATED: 100,
   AWAITING_CREATION: 200,
   CREATED: 300, // created and waiting for an opponent to join
+  JOINED: 400, // if 2 players are now in the game
 });
 
 
@@ -116,6 +117,7 @@ export class Dapp extends React.Component {
               updateGameState={(gameState) => this.setState({gameState})}
               updateGameID={(gameID) => this.setState({currentGameID: gameID})}
               GameStates={GameStates}
+              currentGameID={this.state.currentGameID}
             />
 
             {/* TODO: implement*/}
@@ -128,6 +130,9 @@ export class Dapp extends React.Component {
             <JoinGameWithAddress
               contract={this._contract}
               ethers={ethers}
+              updateGameState={(gameState) => this.setState({gameState})}
+              updateGameID={(gameID) => this.setState({currentGameID: gameID})}
+              GameStates={GameStates}
             />
 
           </div>
@@ -143,6 +148,17 @@ export class Dapp extends React.Component {
             <h1>Game created!</h1>
             <p>The game ID is: {this.state.currentGameID}</p>
             <p>Waiting for another player to join...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if(this.state.gameState === GameStates.JOINED) {
+      return(
+        <div className="row">
+          <div className="col-12">
+            <h1>Another player has joined!</h1>
+            <p>You are now playing with {this.state.userAddress}</p>
           </div>
         </div>
       );

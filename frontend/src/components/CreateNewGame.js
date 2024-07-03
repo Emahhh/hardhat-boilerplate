@@ -13,27 +13,25 @@ export function CreateNewGame({ contract, ethers, updateGameState, GameStates, u
             // Wait for the transaction to be mined
             await tx.wait();
             
+            let myGameID = -1;
+
             // Set up an event listener for the GameCreated event
-            contract.once("GameCreated", (gameCount, creator) => {
-                console.log(`Game created with count: ${gameCount}, by: ${creator}`);
+            contract.once("GameCreated", (myGameIDFromEvent, creator) => {
+                console.log(`Game created with count: ${myGameIDFromEvent}, by: ${creator}`);
                 
                 // Update the game state to indicate the game creation is complete
                 updateGameState(GameStates.CREATED);
-                updateGameID(gameCount.toNumber());
+                updateGameID(myGameIDFromEvent.toNumber());
+                myGameID = myGameIDFromEvent.toNumber();
             });
 
-            contract.once("GameCreated", (gameCount, creator) => {
-                console.log(`Game created with count: ${gameCount}, by: ${creator}`);
-                
-                // Update the game state to indicate the game creation is complete
-                updateGameState(GameStates.CREATED);
-                updateGameID(gameCount.toNumber());
+            // listen to the EVENT that is fired when another player joins
+            contract.once("GameJoined", (eventGameID, player) => {
+                if (eventGameID.toNumber() != myGameID) return;
+                alert(`Another player joined this game (gameID ${eventGameID})! The player is: ${player}.`);
+                updateGameState(GameStates.JOINED);
             });
 
-            // listen to the event that is fired when another player joins
-            contract.once("GameJoined", (gameID, player) => {
-                console.log(`Another player joined the game with ID ${gameID}! The player is: ${player}`);
-            });
         } catch (error) {
             console.error("Error creating game:", error);
             // Optionally update game state to an error state
