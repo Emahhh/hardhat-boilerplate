@@ -118,6 +118,12 @@ contract Mastermind {
         emit GameCreated(gameCount, msg.sender);
     }
 
+    function getGameStake(uint gameId) external view returns (uint stake) {
+        Game storage game = games[gameId];
+        stake = game.stake;
+        return stake;
+    }
+
 
     // al giocatore deve andare bene quella stake
     // TODO: mostrare la stake prima di partire

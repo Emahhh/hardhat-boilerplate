@@ -4,7 +4,8 @@ export function CreateNewGame({ contract, ethers, updateGameState, GameStates, u
     async function createGame() {
         try {
             // Send the transaction to create a new game
-            const tx = await contract.createGame({ value: ethers.utils.parseEther("1") });
+            const amountInWei = ethers.utils.parseUnits("1000", "wei");
+            const tx = await contract.createGame({ value: amountInWei });
             
             // Update game state to awaiting creation
             updateGameState(GameStates.AWAITING_CREATION);
@@ -19,6 +20,19 @@ export function CreateNewGame({ contract, ethers, updateGameState, GameStates, u
                 // Update the game state to indicate the game creation is complete
                 updateGameState(GameStates.CREATED);
                 updateGameID(gameCount.toNumber());
+            });
+
+            contract.once("GameCreated", (gameCount, creator) => {
+                console.log(`Game created with count: ${gameCount}, by: ${creator}`);
+                
+                // Update the game state to indicate the game creation is complete
+                updateGameState(GameStates.CREATED);
+                updateGameID(gameCount.toNumber());
+            });
+
+            // listen to the event that is fired when another player joins
+            contract.once("GameJoined", (gameID, player) => {
+                console.log(`Another player joined the game with ID ${gameID}! The player is: ${player}`);
             });
         } catch (error) {
             console.error("Error creating game:", error);

@@ -127,6 +127,7 @@ export class Dapp extends React.Component {
 
             <JoinGameWithAddress
               contract={this._contract}
+              ethers={ethers}
             />
 
           </div>

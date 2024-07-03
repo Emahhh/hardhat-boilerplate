@@ -1,16 +1,19 @@
 import React, { useState } from "react";
 
-export function JoinGameWithAddress({ contract }) {
-    const [address, setAddress] = useState("");
+export function JoinGameWithAddress({ contract, ethers }) {
+    const [gameID, setGameID] = useState("");
 
-    function joinGame() {
-        if (!address) {
+    async function joinGame() {
+        if (!gameID) {
             alert("Please enter a game ID.");
             return;
         }
-        console.log(contract);
-        // TODO: segnala la stake, e manda il giusto amount come stake
-        contract.joinGame(address);
+        const gameStake = await contract.getGameStake(gameID);
+
+        alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
+        
+        // Join the game
+        contract.joinGame(gameID, { value: gameStake });
     }
 
     return (
@@ -19,8 +22,8 @@ export function JoinGameWithAddress({ contract }) {
                 id="address"
                 className="form-control"
                 placeholder="Game ID"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                value={gameID}
+                onChange={(e) => setGameID(e.target.value)}
             />
             <button
                 type="button"
