@@ -1,5 +1,4 @@
-// This is a script for deploying your contracts. You can adapt it to deploy
-// yours, or create new ones.
+// This is a script for deploying the contract and placing its artifacts in the /frontend folder
 
 const path = require("path");
 
@@ -20,7 +19,7 @@ async function main() {
     await deployer.getAddress()
   );
 
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  console.log("Deployer account balance:", (await deployer.getBalance()).toString());
 
   const Mastermind = await ethers.getContractFactory("Mastermind");
   const mastermind = await Mastermind.deploy();
