@@ -148,7 +148,7 @@ contract Mastermind {
         }
 
         game.state = GameState.InProgress;
-        emit GameStarted(gameId);
+        emit GameStarted(gameId); //TODO: dire chi è il codemaker e chi è il codebreaker
     }
 
     function commitSecretCode(uint gameId, bytes32 secretHash) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Commit) {
@@ -158,7 +158,7 @@ contract Mastermind {
         game.secretHash = secretHash;
         game.phase = TurnPhase.Guess;
 
-        emit CodeCommitted(gameId, secretHash);
+        emit CodeCommitted(gameId, secretHash); // TODO: dire chi è il codemaker
     }
 
     function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
@@ -173,7 +173,7 @@ contract Mastermind {
         game.guessesCounter++;
         game.phase = TurnPhase.Feedback;
 
-        emit CodeGuessed(gameId, guess);
+        emit CodeGuessed(gameId, guess); // TODO: dire di chi è il turno di dare il feedback
     }
 
     
@@ -245,12 +245,14 @@ contract Mastermind {
             game.currentRole = PlayerRole.CodeMaker;
         }
 
+        // if the number of turns ended, let's announce the winner
         if (game.codeBreakerScore + game.codeMakerScore >= NT) {
             game.state = GameState.Ended;
             address winner = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
             emit GameEnded(gameId, winner);
         } else {
             game.phase = TurnPhase.Commit;
+            // TODO: emit evento per dire che: nuovo turno è iniziato, e quali sono i punteggi
         }
     }
 
