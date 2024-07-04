@@ -37,10 +37,14 @@ const COLORS_DATA = [
 
 // an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({
-  NOT_CREATED: 'Not Created - the user hasn't clicked the createGame button or join one',
+  NOT_CREATED: 'Not Created - the user hasnt clicked the createGame button or join one',
   AWAITING_CREATION: 'Awaiting Creation - the user has requested the creation of the game. Waiting for the SC to confirm its creation.',
   CREATED: 'Created and Awaiting Opponent - the user has created a game, but there is still not an opponent. waiting for someone to join.',
   JOINED: 'Joined, Opponent Found - there are finally 2 players in this game',
+  AWAITING_YOUR_COMMIT: 'Awaiting Your Commit - the other player is waiting for you to commit the secret code',
+  AWAITING_OPPONENTS_COMMIT: 'Awaiting Other Player Commit - we are waiting for the other player to commit the secret code',
+  AWAITING_YOUR_GUESS: 'Awaiting Your Guess - we have recieved the event CodeCommitted and it is your turn to guess.',
+  AWAITING_OPPONENTS_GUESS: 'Awaiting Other Player Guess - we are waiting for the other player to guess',
 });
 
 
@@ -155,6 +159,7 @@ export class Dapp extends React.Component {
       );
     }
 
+    // 2 PLAYERS ARE IN THE GAME
     if(this.state.gameState === GameStates.JOINED) {
       return(
         <div className="row">
@@ -165,6 +170,56 @@ export class Dapp extends React.Component {
         </div>
       );
     }
+
+    // THE GAME HAS STARTED, waiting for your commit
+    // TODO: aspettare l'evento GameStarted per sapere quando impostare questo stato
+    if(this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
+      return(
+
+      );
+    }
+
+    // THE GAME HAS STARTED, waiting for opponent's commit
+    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
+      return(
+
+      );
+    }
+
+    // WAITING FOR YOUR GUESS
+    if(this.state.gameState === GameStates.AWAITING_YOUR_GUESS) {
+      return(
+        // TODO: componente per fare la guess
+      );
+    }
+
+    
+    // WAITING FOR OPPONENTS' GUESS
+    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
+      return(
+        // TODO: componente per ASPETTARE
+      );
+    }
+
+
+    // TODO: se ricevo l'evento CodeGuessed(è il mio turno), il client deve rispondere mandando un feedback usando contract.giveFeedback
+    // se l'opponent ha indovinato, aspetto di ricevere FeedbackGiven e poi devo pure fare revealCode
+
+    // SEND A DISPUTE
+    // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa
+    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
+      return(
+      );
+    }
+
+    // AWAITING A POSSIBLE DISPUTE
+    // FINCHé non arriva endTurn, l'altro giocatore potrebbe fare una disputa
+    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
+      return(
+        <p>We are waiting for the other player to choose if they want to make a dispute</p>
+      );
+    }
+
 
     // MAIN APP
     // If everything is loaded, we finally render the actual application.
