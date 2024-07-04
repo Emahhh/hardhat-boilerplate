@@ -35,12 +35,14 @@ const COLORS_DATA = [
   { name: "White", hex: "#FFFFFF" }
 ];
 
+// an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({
-  NOT_CREATED: 100,
-  AWAITING_CREATION: 200,
-  CREATED: 300, // created and waiting for an opponent to join
-  JOINED: 400, // if 2 players are now in the game
+  NOT_CREATED: 'Not Created - the user hasn't clicked the createGame button or join one',
+  AWAITING_CREATION: 'Awaiting Creation - the user has requested the creation of the game. Waiting for the SC to confirm its creation.',
+  CREATED: 'Created and Awaiting Opponent - the user has created a game, but there is still not an opponent. waiting for someone to join.',
+  JOINED: 'Joined, Opponent Found - there are finally 2 players in this game',
 });
+
 
 
 
