@@ -1,6 +1,6 @@
 import React from "react";
 
-export function Loading() {
+export function Loading( { message } ) {
   return (
     <div
       style={{
@@ -27,7 +27,7 @@ export function Loading() {
         }}
       >
         <div className="spinner-border" role="status">
-          <span className="sr-only">Loading...</span>
+          <span className="sr-only"><p>{message}</p></span>
         </div>
       </div>
     </div>

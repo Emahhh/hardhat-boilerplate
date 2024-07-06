@@ -17,7 +17,6 @@ contract Mastermind {
     uint public constant DISPUTE_SECONDS = 10; //TDisp
 
     enum GameState { Created, Joined, InProgress, Ended }
-    enum PlayerRole { None, CodeMaker, CodeBreaker }
     enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
     WaitingForDispute }
 
@@ -36,7 +35,7 @@ contract Mastermind {
         uint256 codeMakerScore;
         GameState state;
         TurnPhase phase;
-        PlayerRole currentRole;
+        address codeMakerAddress;
         uint256 guessesCounter;
         string[NG] currentTurnGuesses;
         Feedback[NG] currentTurnFeedbacks;
@@ -53,7 +52,7 @@ contract Mastermind {
 
     event GameCreated(uint gameId, address creator);
     event GameJoined(uint gameId, address opponent);
-    event GameStarted(uint gameId);
+    event GameStarted(uint gameId, address codeMakerAddress);
     event CodeCommitted(uint gameId, bytes32 secretHash);
     event CodeGuessed(uint gameId, string guess);
     event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
@@ -105,7 +104,7 @@ contract Mastermind {
         myGame.codeMakerScore= 0;
         myGame.state= GameState.Created;
         myGame.phase= TurnPhase.Commit;
-        myGame.currentRole= PlayerRole.None;
+        myGame.codeMakerAddress = msg.sender;
         myGame.guessesCounter= 0;
 
         // for (uint32 i=0; i < NG; i++) {
@@ -129,6 +128,7 @@ contract Mastermind {
     // TODO: mostrare la stake prima di partire
     function joinGame(uint gameId) external payable inState(gameId, GameState.Created) {
         Game storage game = games[gameId];
+        require(msg.sender != game.creator, "You can't play against yourself!");
         require(msg.value == game.stake, "Stake must match the creator's stake");
 
         game.opponent = msg.sender;
@@ -142,18 +142,17 @@ contract Mastermind {
 
         // Randomly select roles
         if (block.timestamp % 2 == 0) {
-            game.currentRole = PlayerRole.CodeMaker;
+            game.codeMakerAddress = msg.sender;
         } else {
-            game.currentRole = PlayerRole.CodeBreaker;
+            game.codeMakerAddress = game.opponent;
         }
-
         game.state = GameState.InProgress;
-        emit GameStarted(gameId); //TODO: dire chi è il codemaker e chi è il codebreaker
+        emit GameStarted(gameId, game.codeMakerAddress);
     }
 
     function commitSecretCode(uint gameId, bytes32 secretHash) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Commit) {
         Game storage game = games[gameId];
-        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can commit the code");
+        require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can commit the code");
 
         game.secretHash = secretHash;
         game.phase = TurnPhase.Guess;
@@ -164,7 +163,7 @@ contract Mastermind {
     function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
-        require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can make guesses");
+        require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can make guesses");
 
         // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
         // require(guess.length == N, "Invalid guess length");
@@ -179,7 +178,7 @@ contract Mastermind {
     
     function giveFeedback(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
         Game storage game = games[gameId];
-        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can give feedback");
+        require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can give feedback");
 
         // TODO: Validate feedback
 
@@ -197,7 +196,7 @@ contract Mastermind {
 
     function revealCode(uint gameId, string memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {
         Game storage game = games[gameId];
-        require(game.currentRole == PlayerRole.CodeMaker, "Only the CodeMaker can reveal the code");
+        require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can reveal the code");
 
         require(keccak256(bytes(secretCode)) == game.secretHash, "This secret code doesn't match the hash submitted initially! Did you try to cheat?");
 
@@ -214,7 +213,7 @@ contract Mastermind {
     // TODO: implement
     function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
-        require(game.currentRole == PlayerRole.CodeBreaker, "Only the CodeBreaker can dispute");
+        require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can dispute");
 
         // TODO: end the whole game
     }
@@ -239,10 +238,10 @@ contract Mastermind {
         game.guessesCounter = 0;
 
         // Swap roles
-        if (game.currentRole == PlayerRole.CodeMaker) {
-            game.currentRole = PlayerRole.CodeBreaker;
+        if (game.codeMakerAddress == msg.sender) {
+            game.codeMakerAddress = game.opponent;
         } else {
-            game.currentRole = PlayerRole.CodeMaker;
+            game.codeMakerAddress = msg.sender;
         }
 
         // if the number of turns ended, let's announce the winner

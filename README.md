@@ -38,6 +38,9 @@ pnpm run start
 - You will need to have [Coinbase Wallet](https://www.coinbase.com/wallet) or [Metamask](https://metamask.io) installed and listening to `localhost 8545`.
 
 
+## Troubleshooting
+- Se compiono errori come "Nonce too high" o "invalid block tag" è necessario ripulire la cache di Metamask andando su [Clear Acticity Tab Data](chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/home.html#settings/advanced)
+
 
 ## Useful links
 - Deploy and interact with your contracts using [ethers.js](https://docs.ethers.io/v5/) and the [`hardhat-ethers`](https://hardhat.org/hardhat-runner/plugins/nomiclabs-hardhat-ethers) plugin.

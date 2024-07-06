@@ -76,10 +76,15 @@ export class Dapp extends React.Component {
   }
 
   render() {
+
     // CHECK IF A WALLET IS INSTALLED - if not, ask the user
     // Ethereum wallets inject the window.ethereum object. If it hasn't been injected, we instruct the user to install a wallet.
     if (window.ethereum === undefined) {
       return <NoWalletDetected />;
+    }
+
+    if(this.state.gameState === undefined) { 
+      return <p>ERROR: gameState is undefined</p>
     }
 
     // ASK TO CONNECT TO THE USER'S WALLET
@@ -99,8 +104,12 @@ export class Dapp extends React.Component {
     // SHOW LOADING
     // se ancora non sono state caricate queste cose, mostrare loading
     // TODO: decidere cosa aspettare 
-    if (this.colorsVerified === false || this.state.gameState === GameStates.AWAITING_CREATION) {
-      return <Loading />;
+    if (this.colorsVerified === false) {
+      return <Loading message={"Verifying colors..."} />
+    }
+
+    if (this.state.gameState === GameStates.AWAITING_CREATION) {
+      return <Loading message={"Waiting for the Smart Contract to create the game..."} />
     }
 
     // JOIN OR CREATE A GAME
@@ -175,21 +184,22 @@ export class Dapp extends React.Component {
     // TODO: aspettare l'evento GameStarted per sapere quando impostare questo stato
     if(this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
       return(
-
+        <p>TODO: componente per fare la commit</p>
       );
     }
 
     // THE GAME HAS STARTED, waiting for opponent's commit
     if(this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
       return(
-
+        <p>TODO: componente per ASPETTARE il commit dell'altro</p>
       );
     }
 
     // WAITING FOR YOUR GUESS
     if(this.state.gameState === GameStates.AWAITING_YOUR_GUESS) {
       return(
-        // TODO: componente per fare la guess
+
+        <p> TODO: componente per fare la guess</p>
       );
     }
 
@@ -197,7 +207,7 @@ export class Dapp extends React.Component {
     // WAITING FOR OPPONENTS' GUESS
     if(this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
       return(
-        // TODO: componente per ASPETTARE
+        <p>TODO: componente per ASPETTARE </p>
       );
     }
 
@@ -209,6 +219,7 @@ export class Dapp extends React.Component {
     // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa
     if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
       return(
+        <p>TODO: componente per fare la disputa</p>
       );
     }
 
@@ -286,6 +297,11 @@ export class Dapp extends React.Component {
     // To connect to the user's wallet, we have to run this method. It returns a promise that will resolve to the user's address.
     const [userAddress] = await window.ethereum.request({ method: 'eth_requestAccounts' });
 
+    if (!userAddress) {
+      alert("There was an error connecting to your wallet. Please try again.");
+      return;
+    }
+
     // Once we have the address, we can initialize the application.
 
     // First we check the network
@@ -310,7 +326,7 @@ export class Dapp extends React.Component {
 
     // We first store the user's address in the component's state
     this.setState({
-      userAddress: userAddress,
+      userAddress: userAddress.toString().toLowerCase(),
     });
 
     // ETHERS INITIALIZATION
@@ -330,6 +346,64 @@ export class Dapp extends React.Component {
     this.setState({ contractName: cName });
     
     this._verifyColors();
+
+
+
+    // EVENT LISTENERS ----------------
+
+    // Set up an event listener for the GameCreated event
+    this._contract.on("GameCreated", (myGameIDFromEvent, creator) => {
+
+      const creatorLowerCase = creator.toString().toLowerCase();
+      const userAddressLowerCase = this.state.userAddress.toLowerCase();
+
+      console.log(`A game was created with ID: ${myGameIDFromEvent}, by: ${creatorLowerCase}`);
+      
+      if (creatorLowerCase !== userAddressLowerCase) {
+        console.log("Not the creator, so not updating the game state:");
+        console.log(`Creator address: '${creatorLowerCase}', type: ${typeof creatorLowerCase}`);
+        console.log(`User address:    '${userAddressLowerCase}', type: ${typeof userAddressLowerCase}`);
+        console.log(`Length comparison: ${creatorLowerCase.length} vs ${userAddressLowerCase.length}`);
+        return;
+      }
+
+      if (this.state.gameState !== GameStates.AWAITING_CREATION) {
+        console.log("Not awaiting creation, so not updating the game state");
+        return;
+      }
+
+
+      // Update the game state to indicate the game creation is complete
+      this.setState({gameState: GameStates.CREATED, currentGameID: myGameIDFromEvent.toNumber()});
+    });
+  
+    // listen to the EVENT that is fired when any player joins any game. TODO: is it any?
+    this._contract.on("GameJoined", (eventGameID, player) => {
+      if (this.state.gameState != GameStates.CREATED) return;
+      if (this.state.currentGameID != eventGameID.toNumber()) return;
+
+      alert(`Another player joined this game (gameID ${eventGameID})! The player is: ${player}.`);
+
+      this.setState({gameState: GameStates.JOINED});
+      this.setState({currentGameID: eventGameID.toNumber()});
+    });
+
+
+    // the game is started and the roles have been assigned
+    this._contract.on("GameStarted", (eventGameID, codeMakerAddress) => {
+      if (this.state.gameState != GameStates.JOINED) return;
+      if (this.state.currentGameID != eventGameID.toNumber()) return;
+
+      console.log(`Event GameStarted recied. GameID: ${eventGameID}, The codeMaker is: ${codeMakerAddress}`);
+
+      if (codeMakerAddress == this.userAddress) {
+        this.setState({gameState: GameStates.AWAITING_YOUR_COMMIT});
+      } else {
+        this.setState({gameState: GameStates.AWAITING_OPPONENT_COMMIT});
+      }
+
+    });
+
   }
 
 
