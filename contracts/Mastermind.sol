@@ -148,6 +148,7 @@ contract Mastermind {
         }
         game.state = GameState.InProgress;
         emit GameStarted(gameId, game.codeMakerAddress);
+        console.log("!!! Fired GameStarted event. Game ID: ", gameId, ", codeMaker: ", game.codeMakerAddress);
     }
 
     function commitSecretCode(uint gameId, bytes32 secretHash) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Commit) {

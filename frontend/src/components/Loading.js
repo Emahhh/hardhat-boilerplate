@@ -27,8 +27,23 @@ export function Loading( { message } ) {
         }}
       >
         <div className="spinner-border" role="status">
-          <span className="sr-only"><p>{message}</p></span>
         </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          zIndex: 3,
+          top: "70%",
+          left: "50%",
+          width: "100px",
+          height: "50px",
+          marginLeft: "-50px",
+          marginTop: " -25px",
+          textAlign: "center",
+        }}
+      >
+        <p>{message}</p>
       </div>
     </div>
   );

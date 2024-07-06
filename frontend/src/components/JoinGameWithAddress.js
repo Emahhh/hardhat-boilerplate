@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-export function JoinGameWithAddress({ contract }) {
+export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
     const [gameID, setGameID] = useState("");
 
     async function joinGame() {
@@ -14,8 +14,12 @@ export function JoinGameWithAddress({ contract }) {
         // TODO: make em choose
         
         // Join the game
-        contract.joinGame(gameID, { value: gameStake });
-
+        try {
+            await contract.joinGame(gameID, { value: gameStake });
+            updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
+        } catch (error) {
+            alert("Error joining game:", error);
+        }
     }
 
     return (

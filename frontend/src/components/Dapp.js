@@ -40,6 +40,7 @@ const GameStates = Object.freeze({
   NOT_CREATED: 'Not Created - the user hasnt clicked the createGame button or join one',
   AWAITING_CREATION: 'Awaiting Creation - the user has requested the creation of the game. Waiting for the SC to confirm its creation.',
   CREATED: 'Created and Awaiting Opponent - the user has created a game, but there is still not an opponent. waiting for someone to join.',
+  AWAITING_JOIN_CONFIRMATION: 'Awaiting Join Confirmation - the user has requested to join a game. Waiting for the SC to confirm its joining.',
   JOINED: 'Joined, Opponent Found - there are finally 2 players in this game',
   AWAITING_YOUR_COMMIT: 'Awaiting Your Commit - the other player is waiting for you to commit the secret code',
   AWAITING_OPPONENTS_COMMIT: 'Awaiting Other Player Commit - we are waiting for the other player to commit the secret code',
@@ -76,6 +77,10 @@ export class Dapp extends React.Component {
   }
 
   render() {
+
+    if (!this.state) {
+      return <p>ERROR: gameState is undefined</p>
+    }
 
     // CHECK IF A WALLET IS INSTALLED - if not, ask the user
     // Ethereum wallets inject the window.ethereum object. If it hasn't been injected, we instruct the user to install a wallet.
@@ -144,9 +149,7 @@ export class Dapp extends React.Component {
 
             <JoinGameWithAddress
               contract={this._contract}
-              ethers={ethers}
               updateGameState={(gameState) => this.setState({gameState})}
-              updateGameID={(gameID) => this.setState({currentGameID: gameID})}
               GameStates={GameStates}
             />
 
@@ -168,20 +171,17 @@ export class Dapp extends React.Component {
       );
     }
 
+    if(this.state.gameState === GameStates.AWAITING_JOIN_CONFIRMATION) {
+      return <Loading message={"You are joining the game..."} />
+    }
+
+
     // 2 PLAYERS ARE IN THE GAME
     if(this.state.gameState === GameStates.JOINED) {
-      return(
-        <div className="row">
-          <div className="col-12">
-            <h1>Another player has joined!</h1>
-            <p>You are now playing against another player!</p>
-          </div>
-        </div>
-      );
+      return <Loading message={"Waiting for the game to start..."} />
     }
 
     // THE GAME HAS STARTED, waiting for your commit
-    // TODO: aspettare l'evento GameStarted per sapere quando impostare questo stato
     if(this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
       return(
         <p>TODO: componente per fare la commit</p>
@@ -191,7 +191,8 @@ export class Dapp extends React.Component {
     // THE GAME HAS STARTED, waiting for opponent's commit
     if(this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
       return(
-        <p>TODO: componente per ASPETTARE il commit dell'altro</p>
+        <Loading message={"Waiting for the other platyer to commit their secret code..."} />
+
       );
     }
 
@@ -232,7 +233,13 @@ export class Dapp extends React.Component {
     }
 
 
-    // MAIN APP
+
+    return (
+      <p>ERROR: gameState has an unexpected value: {this.state.gameState}</p>
+    );
+
+
+    // MAIN APP VECCHIA
     // If everything is loaded, we finally render the actual application.
     return (
       <div className="container p-4">
@@ -242,7 +249,7 @@ export class Dapp extends React.Component {
               Welcome to {this.state.contractName}!
             </h1>
             <p>
-              You can choose between these colors {this.colorsData.map(color => color.name).join(", ")}.
+              You can choose between these colors {this.colorsData && this.colorsData.map(color => color.name).join(", ")}.
             </p>
           </div>
         </div>
@@ -376,33 +383,51 @@ export class Dapp extends React.Component {
       // Update the game state to indicate the game creation is complete
       this.setState({gameState: GameStates.CREATED, currentGameID: myGameIDFromEvent.toNumber()});
     });
-  
+    
+    // I JOINED THE GAME, OR SOMEONE ELSE JOINED THE GAME
     // listen to the EVENT that is fired when any player joins any game. TODO: is it any?
     this._contract.on("GameJoined", (eventGameID, player) => {
-      if (this.state.gameState != GameStates.CREATED) return;
-      if (this.state.currentGameID != eventGameID.toNumber()) return;
 
-      alert(`Another player joined this game (gameID ${eventGameID})! The player is: ${player}.`);
 
-      this.setState({gameState: GameStates.JOINED});
-      this.setState({currentGameID: eventGameID.toNumber()});
+      if (this.state.gameState == GameStates.CREATED) {
+        if (this.state.currentGameID != eventGameID.toNumber()) return;
+
+        this.setState({gameState: GameStates.JOINED});
+        this.setState({currentGameID: eventGameID.toNumber()});
+
+        this._contract.startGame(this.state.currentGameID);
+      }
+
+      if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION){
+        if (this.state.userAddress.toString().toLowerCase() != player.toString().toLowerCase()) return;
+
+        this.setState({gameState: GameStates.JOINED});
+        this.setState({currentGameID: eventGameID.toNumber()});
+      }
+
     });
 
 
     // the game is started and the roles have been assigned
     this._contract.on("GameStarted", (eventGameID, codeMakerAddress) => {
       if (this.state.gameState != GameStates.JOINED) return;
-      if (this.state.currentGameID != eventGameID.toNumber()) return;
+      if (this.state.currentGameID != eventGameID) {
+        console.log("Recieved a GameStarted event for a game that is not the current game. Ignoring. The current game is: ", this.state.currentGameID, " and the event's gameID is: ", eventGameID.toNumber());
+        return;
+      }
 
-      console.log(`Event GameStarted recied. GameID: ${eventGameID}, The codeMaker is: ${codeMakerAddress}`);
+      console.log(`Event GameStarted recieved. GameID: ${eventGameID}, The codeMaker is: ${codeMakerAddress}`);
 
-      if (codeMakerAddress == this.userAddress) {
+      if (codeMakerAddress.toString().toLowerCase() == this.userAddress.toString().toLowerCase()) {
         this.setState({gameState: GameStates.AWAITING_YOUR_COMMIT});
       } else {
-        this.setState({gameState: GameStates.AWAITING_OPPONENT_COMMIT});
+        this.setState({gameState: GameStates.AWAITING_OPPONENTS_COMMIT});
       }
 
     });
+
+
+
 
   }
 
