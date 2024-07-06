@@ -361,16 +361,11 @@ export class Dapp extends React.Component {
     // Set up an event listener for the GameCreated event
     this._contract.on("GameCreated", (myGameIDFromEvent, creator) => {
 
-      const creatorLowerCase = creator.toString().toLowerCase();
-      const userAddressLowerCase = this.state.userAddress.toLowerCase();
 
-      console.log(`A game was created with ID: ${myGameIDFromEvent}, by: ${creatorLowerCase}`);
+      console.log(`A game was created with ID: ${myGameIDFromEvent}, by: ${creator}`);
       
-      if (creatorLowerCase !== userAddressLowerCase) {
-        console.log("Not the creator, so not updating the game state:");
-        console.log(`Creator address: '${creatorLowerCase}', type: ${typeof creatorLowerCase}`);
-        console.log(`User address:    '${userAddressLowerCase}', type: ${typeof userAddressLowerCase}`);
-        console.log(`Length comparison: ${creatorLowerCase.length} vs ${userAddressLowerCase.length}`);
+      if (!addressesEqual(creator, this.state.userAddress)) {
+        console.log("I am not the creator, so not updating the game state");
         return;
       }
 
@@ -399,7 +394,7 @@ export class Dapp extends React.Component {
       }
 
       if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION){
-        if (this.state.userAddress.toString().toLowerCase() != player.toString().toLowerCase()) return;
+        if (!addressesEqual(player, this.state.userAddress)) return;
 
         this.setState({gameState: GameStates.JOINED});
         this.setState({currentGameID: eventGameID.toNumber()});
@@ -418,7 +413,7 @@ export class Dapp extends React.Component {
 
       console.log(`Event GameStarted recieved. GameID: ${eventGameID}, The codeMaker is: ${codeMakerAddress}`);
 
-      if (codeMakerAddress.toString().toLowerCase() == this.userAddress.toString().toLowerCase()) {
+      if (addressesEqual(codeMakerAddress, this.state.userAddress)) {
         this.setState({gameState: GameStates.AWAITING_YOUR_COMMIT});
       } else {
         this.setState({gameState: GameStates.AWAITING_OPPONENTS_COMMIT});
@@ -510,4 +505,14 @@ export class Dapp extends React.Component {
 
 
 
+
+
+
 }
+
+
+function addressesEqual(addr1, addr2) {
+  return addr1.toString().toLowerCase() === addr2.toString().toLowerCase();
+}
+
+
