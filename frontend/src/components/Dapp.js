@@ -158,7 +158,7 @@ export class Dapp extends React.Component {
         <div className="row">
           <div className="col-12">
             <h1>Another player has joined!</h1>
-            <p>You are now playing with {this.state.userAddress}</p>
+            <p>You are now playing against another player!</p>
           </div>
         </div>
       );
