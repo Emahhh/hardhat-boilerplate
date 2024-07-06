@@ -18,12 +18,22 @@ import { FindRandomGame } from "./FindRandomGame";
 import { JoinGameWithAddress } from "./JoinGameWithAddress";
 import { WalletInfo } from "./WalletInfo";
 import { CreateNewGame } from "./CreateNewGame";
+import { CommitSecretCode } from "./CommitSecretCode";
+import { MakeGuess } from "./MakeGuess";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
 
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
+
+
+const N = 4; // Number of colors in the code
+const M = 6; // Number of possible colors
+const NT = 10; // Number of turns
+const NG = 12; // Number of guesses per turn
+const K = 5; // Extra points for unbroken code
+const DISPUTE_SECONDS = 10; //TDisp
 
 
 const COLORS_DATA = [
@@ -46,6 +56,8 @@ const GameStates = Object.freeze({
   AWAITING_OPPONENTS_COMMIT: 'Awaiting Other Player Commit - we are waiting for the other player to commit the secret code',
   AWAITING_YOUR_GUESS: 'Awaiting Your Guess - we have recieved the event CodeCommitted and it is your turn to guess.',
   AWAITING_OPPONENTS_GUESS: 'Awaiting Other Player Guess - we are waiting for the other player to guess',
+  AWAITING_YOUR_FEEDBACK: 'Awaiting Your Feedback - it is your turn to give feedback.',
+  AWAITING_OPPONENTS_FEEDBACK: 'Awaiting Other Player Feedback - we are waiting for the other player to give feedback',
 });
 
 
@@ -71,6 +83,7 @@ export class Dapp extends React.Component {
       gameState: GameStates.NOT_CREATED,
       colorsVerified: false,
       currentGameID: undefined,
+      secretCode: undefined,
     };
 
     this.state = this.initialState;
@@ -142,7 +155,6 @@ export class Dapp extends React.Component {
 
             {/* TODO: implement*/}
             <FindRandomGame
-              findRandomGameFunction={() => this._findRandomGame()}
             />
 
             <hr />
@@ -183,9 +195,12 @@ export class Dapp extends React.Component {
 
     // THE GAME HAS STARTED, waiting for your commit
     if(this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
-      return(
-        <p>TODO: componente per fare la commit</p>
-      );
+      return <CommitSecretCode
+        contract={this._contract}
+        gameId={this.state.currentGameID}
+        onCodeCommitted={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
+        updateSecretCode={(code) => this.setState({ secretCode: code })}
+      />
     }
 
     // THE GAME HAS STARTED, waiting for opponent's commit
@@ -196,11 +211,13 @@ export class Dapp extends React.Component {
       );
     }
 
-    // WAITING FOR YOUR GUESS
-    if(this.state.gameState === GameStates.AWAITING_YOUR_GUESS) {
-      return(
-
-        <p> TODO: componente per fare la guess</p>
+    if (this.state.gameState === GameStates.AWAITING_YOUR_GUESS) {
+      return (
+        <MakeGuess
+          contract={this._contract}
+          gameId={this.state.currentGameID}
+          onGuessMade={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK })}
+        />
       );
     }
 
@@ -208,7 +225,7 @@ export class Dapp extends React.Component {
     // WAITING FOR OPPONENTS' GUESS
     if(this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
       return(
-        <p>TODO: componente per ASPETTARE </p>
+        <Loading message={"Waiting for the other player to make their guess..."} />
       );
     }
 
@@ -350,6 +367,9 @@ export class Dapp extends React.Component {
     // FETCHING DATA
     // fetch some data from the contract
     const cName = this._contract.name();
+    if (!cName) {
+      console.log("Contract name not found");
+    }
     this.setState({ contractName: cName });
     
     this._verifyColors();
@@ -422,6 +442,67 @@ export class Dapp extends React.Component {
     });
 
 
+    this._contract.on("CodeCommitted", (eventGameID, codeHash) => {
+      if (this.state.gameState != GameStates.AWAITING_YOUR_COMMIT || GameStates.AWAITING_OPPONENTS_COMMIT) return;
+      if (this.state.currentGameID != eventGameID) return;
+
+      console.log(`Event CodeCommitted recieved. GameID: ${eventGameID}, The code hash is: ${codeHash}`);
+
+      if (this.state.gameState == GameStates.AWAITING_YOUR_COMMIT ){
+        // se ho committato il codice, ora devo attendere che l'altro giocatore propornga la sua guess
+        this.setState({gameState: GameStates.AWAITING_OPPONENTS_GUESS});
+
+      } else if (this.state.gameState == GameStates.AWAITING_OPPONENTS_COMMIT ){
+        // se l'altro giocatore ha committato il suo codice, ora devo dare la mia guess
+        this.setState({gameState: GameStates.AWAITING_YOUR_GUESS});
+      } else {
+        console.log("Error in on CodeCommitted");
+      }
+
+
+    });
+
+    this._contract.on("CodeGuessed", async (eventGameID, guessedCode) => {
+      if (this.state.gameState !== GameStates.AWAITING_OPPONENTS_GUESS) return;
+      if (this.state.currentGameID != eventGameID) return;
+    
+      console.log(`Event CodeGuessed received. GameID: ${eventGameID}, The guessed code is: ${guessedCode}`);
+    
+      const secretCode = this.state.secretCode;
+      const { correctColorAndPosition, correctColorWrongPosition } = calculateFeedback(secretCode, guessedCode);
+    
+      try {
+        await this._contract.giveFeedback(eventGameID, correctColorAndPosition, correctColorWrongPosition);
+        console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
+
+        if(correctColorAndPosition == N) {
+          alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
+          // TODO: handle victory
+        }
+        this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK });
+      } catch (error) {
+        console.error("Error giving feedback:", error);
+      }
+    });
+
+    this._contract.on("CodeGuessedSuccessfully", (eventGameID, codeMakerAddress) => {
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
+      if (this.state.currentGameID != eventGameID) return;
+
+      alert("YOU GUESSED CORRECTLY!"); // TODO: handle victory
+    });
+
+    this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, triesLeft) => {
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
+      if (this.state.currentGameID != eventGameID) return;
+
+      alert("YOU GUESSED INCORRECTLY!"); 
+      // TODO: handle victory
+    });
+    
+
+
+
 
 
   }
@@ -457,10 +538,6 @@ export class Dapp extends React.Component {
 
 
   // other functions
-
-  _findRandomGame() {
-    this._contract.findRandomGame();
-  }
 
   // This method just clears part of the state.
   _dismissTransactionError() {
@@ -516,3 +593,44 @@ function addressesEqual(addr1, addr2) {
 }
 
 
+
+
+
+function calculateFeedback(secretCode, guessedCode) {
+  // Implement your Mastermind feedback calculation logic here
+  let correctColorAndPosition = 0;
+  let correctColorWrongPosition = 0;
+
+  // Convert secret code and guessed code to arrays for easier comparison
+  const secretArray = secretCode.split("");
+  const guessedArray = guessedCode.split("");
+
+  // Create arrays to track used positions
+  const secretUsed = Array(secretArray.length).fill(false);
+  const guessedUsed = Array(guessedArray.length).fill(false);
+
+  // First pass: check for correct color and position
+  for (let i = 0; i < secretArray.length; i++) {
+    if (secretArray[i] === guessedArray[i]) {
+      correctColorAndPosition++;
+      secretUsed[i] = true;
+      guessedUsed[i] = true;
+    }
+  }
+
+  // Second pass: check for correct color but wrong position
+  for (let i = 0; i < secretArray.length; i++) {
+    if (!secretUsed[i]) {
+      for (let j = 0; j < guessedArray.length; j++) {
+        if (!guessedUsed[j] && secretArray[i] === guessedArray[j]) {
+          correctColorWrongPosition++;
+          secretUsed[i] = true;
+          guessedUsed[j] = true;
+          break;
+        }
+      }
+    }
+  }
+
+  return { correctColorAndPosition, correctColorWrongPosition };
+}

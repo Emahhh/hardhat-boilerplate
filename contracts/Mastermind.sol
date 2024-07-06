@@ -58,6 +58,8 @@ contract Mastermind {
     event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
     event CodeRevealed(uint gameId, string secretCode);
     event GameEnded(uint gameId, address winner);
+    event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
+    event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint triesLeft);
 
 
     // MODIFIERS --------------
@@ -88,6 +90,9 @@ contract Mastermind {
     }
 
     // END OF MODIFIERS -------
+
+    receive() external payable {} // to support receiving ETH by default
+    fallback() external payable {}
 
     function createGame() external payable {
         require(msg.value > 0, "Stake must be greater than 0");
@@ -165,6 +170,7 @@ contract Mastermind {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
         require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can make guesses");
+        require(game.currentTurnFeedbacks.length >= NG, "No tries left");
 
         // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
         // require(guess.length == N, "Invalid guess length");
@@ -174,25 +180,35 @@ contract Mastermind {
         game.phase = TurnPhase.Feedback;
 
         emit CodeGuessed(gameId, guess); // TODO: dire di chi è il turno di dare il feedback
+        console.log("!!! The codeBreaker has given their guess. emitting the event CodeGuessed");
     }
 
     
     function giveFeedback(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
         Game storage game = games[gameId];
         require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can give feedback");
+        require(game.currentTurnFeedbacks.length >= NG, "No tries left");
 
         // TODO: Validate feedback
-
         game.currentTurnFeedbacks[game.guessesCounter-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
 
-        if (game.currentTurnFeedbacks.length >= NG) {
+
+        uint triesLeft = NG - game.guessesCounter;
+
+        if (correctColorAndPosition == N) {
+            console.log ("The codeMaker has given feedback, the code is correct! The codeMaker guessed! Time to reveal the code!");
             game.phase = TurnPhase.Reveal;
-        } else if (correctColorAndPosition == N) {
-            console.log ("According to the feedback, the code is correct!");
-            game.phase = TurnPhase.Reveal;
+            emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress);
+        } else {
+            console.log ("The codeMaker has given feedback, the code is not correct.");
+
+            if (triesLeft == 0) {
+                console.log ("!!! No turns left!");
+                game.phase = TurnPhase.Reveal;
+                emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, triesLeft);
+            }
         }
 
-        emit FeedbackGiven(gameId, correctColorAndPosition, correctColorWrongPosition);
     }
 
     function revealCode(uint gameId, string memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {

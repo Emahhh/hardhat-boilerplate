@@ -1,14 +1,12 @@
 import React from "react";
 
-export function FindRandomGame({ findRandomGameFunction }) {
+export function FindRandomGame() {
     return (
 
         <button
-            type="button"
-            className="btn btn-primary"
-            onClick={findRandomGameFunction}
+
         >
-            Find a Random Game
+            TODO
         </button>
 
     );
