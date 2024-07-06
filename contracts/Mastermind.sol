@@ -7,6 +7,17 @@ import "hardhat/console.sol";
 
 contract Mastermind {
     string public constant name = "Mastermind";
+    string public constant symbol = "ETH";
+    uint8 public constant decimals = 18;
+    receive() external payable {}
+    fallback() external payable {
+        console.log("Fallback function called. Amount of Ether received:", msg.value);
+        console.log("Sender address:", msg.sender);
+    }
+    function supportsInterface(bytes4 interfaceId) public view returns (bool) {
+        return false;
+    }
+
 
     // Game parameters
     uint public constant N = 4; // Number of colors in the code
@@ -91,8 +102,8 @@ contract Mastermind {
 
     // END OF MODIFIERS -------
 
-    receive() external payable {} // to support receiving ETH by default
-    fallback() external payable {}
+
+
 
     function createGame() external payable {
         require(msg.value > 0, "Stake must be greater than 0");
