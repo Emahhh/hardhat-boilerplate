@@ -98,6 +98,12 @@ export class Dapp extends React.Component {
     this.state = this.initialState;
   }
 
+  componentWillUnmount() {
+    // We poll the user's balance, so we have to stop doing that when Dapp gets unmounted
+    // this._stopPollingData();
+  }
+
+
   render() {
 
     if (!this.state) {
@@ -110,7 +116,7 @@ export class Dapp extends React.Component {
       return <NoWalletDetected />;
     }
 
-    if(this.state.gameState === undefined) { 
+    if (this.state.gameState === undefined) {
       return <p>ERROR: gameState is undefined</p>
     }
 
@@ -141,30 +147,30 @@ export class Dapp extends React.Component {
 
     // JOIN OR CREATE A GAME
     // if there is no game in progress, show buttons to join one
-    if(this.state.gameState === GameStates.NOT_CREATED) {
-      return(
+    if (this.state.gameState === GameStates.NOT_CREATED) {
+      return (
         <div className="container">
           <article>
 
             <h1>Welcome to Mastermind!</h1>
 
             <hr />
-              <WalletInfo
-                provider={this._ethersProvider}
-                account={this.state.userAddress}
-              />
+            <WalletInfo
+              provider={this._ethersProvider}
+              account={this.state.userAddress}
+            />
 
             <hr />
 
             <h4>Create a Game</h4>
-              <CreateNewGame
-                contract={this._contract}
-                ethers={ethers}
-                updateGameState={(gameState) => this.setState({gameState})}
-                updateGameID={(gameID) => this.setState({currentGameID: gameID})}
-                GameStates={GameStates}
-                currentGameID={this.state.currentGameID}
-              />
+            <CreateNewGame
+              contract={this._contract}
+              ethers={ethers}
+              updateGameState={(gameState) => this.setState({ gameState })}
+              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
+              GameStates={GameStates}
+              currentGameID={this.state.currentGameID}
+            />
 
             <hr />
             <h4>Find a random Game</h4>
@@ -179,15 +185,15 @@ export class Dapp extends React.Component {
 
             <JoinGameWithAddress
               contract={this._contract}
-              updateGameState={(gameState) => this.setState({gameState})}
+              updateGameState={(gameState) => this.setState({ gameState })}
               GameStates={GameStates}
             />
 
             {this.state.transactionError && (
-                <TransactionErrorMessage
-                  message={this._getRpcErrorMessage(this.state.transactionError)}
-                  dismiss={() => this._dismissTransactionError()}
-                />
+              <TransactionErrorMessage
+                message={this._getRpcErrorMessage(this.state.transactionError)}
+                dismiss={() => this._dismissTransactionError()}
+              />
             )}
 
           </article>
@@ -196,8 +202,8 @@ export class Dapp extends React.Component {
     }
 
     // GAME CREATED, WAIT FOR ANOTHER PLAYER
-    if(this.state.gameState === GameStates.CREATED) {
-      return(
+    if (this.state.gameState === GameStates.CREATED) {
+      return (
         <div className="row">
           <div className="col-12">
             <h1>Game created!</h1>
@@ -208,18 +214,18 @@ export class Dapp extends React.Component {
       );
     }
 
-    if(this.state.gameState === GameStates.AWAITING_JOIN_CONFIRMATION) {
+    if (this.state.gameState === GameStates.AWAITING_JOIN_CONFIRMATION) {
       return <Loading message={"You are joining the game..."} />
     }
 
 
     // 2 PLAYERS ARE IN THE GAME
-    if(this.state.gameState === GameStates.JOINED) {
+    if (this.state.gameState === GameStates.JOINED) {
       return <Loading message={"Waiting for the game to start..."} />
     }
 
     // THE GAME HAS STARTED, waiting for your commit
-    if(this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
+    if (this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
       return <CommitSecretCode
         contract={this._contract}
         gameId={this.state.currentGameID}
@@ -229,8 +235,8 @@ export class Dapp extends React.Component {
     }
 
     // THE GAME HAS STARTED, waiting for opponent's commit
-    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
-      return(
+    if (this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
+      return (
         <Loading message={"Waiting for the other platyer to commit their secret code..."} />
 
       );
@@ -249,24 +255,24 @@ export class Dapp extends React.Component {
       );
     }
 
-    
+
     // WAITING FOR OPPONENTS' GUESS
-    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
-      return(
+    if (this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
+      return (
         <Loading message={"Waiting for the other player to make their guess..."} />
-        
+
       );
     }
 
 
-    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_FEEDBACK) {
-      return(
+    if (this.state.gameState === GameStates.AWAITING_OPPONENTS_FEEDBACK) {
+      return (
         <Loading message={"Waiting for the other player to give feedback on your guess..."} />
       );
     }
 
-    if(this.state.gameState === GameStates.AWAITING_YOUR_FEEDBACK) {
-      return(
+    if (this.state.gameState === GameStates.AWAITING_YOUR_FEEDBACK) {
+      return (
         <Loading message={"Recieved the opponent's guess. Giving feedback..."} />
       );
     }
@@ -281,13 +287,13 @@ export class Dapp extends React.Component {
 
     // SEND A DISPUTE
     // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa, o accettare il fatto che non ho indovinato
-    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
-      return(
+    if (this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
+      return (
         <div>
-          <button onClick={function(){ alert("TODO: implement dispute")}}>Dispute</button>
+          <button onClick={function () { alert("TODO: implement dispute") }}>Dispute</button>
           <button
             onClick={
-              function(){
+              function () {
                 this._contract.dontDispute(this.state.currentGameID);
                 this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
               }
@@ -300,9 +306,9 @@ export class Dapp extends React.Component {
 
     // AWAITING A POSSIBLE DISPUTE
     // FINCHé non arriva endTurn, l'altro giocatore potrebbe fare una disputa
-    if(this.state.gameState == GameStates.AWAITING_OPPONENTS_DISPUTE) {
-      return(
-        <article> 
+    if (this.state.gameState == GameStates.AWAITING_OPPONENTS_DISPUTE) {
+      return (
+        <article>
           <Loading message={"Waiting for the other player to choose if they want to make a dispute"} />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
@@ -310,17 +316,17 @@ export class Dapp extends React.Component {
     }
 
 
-    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE_DENIED) {
-      return(
-        <article> 
+    if (this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE_DENIED) {
+      return (
+        <article>
           <Loading message={"Waiting for next phase..."} />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
       );
-        
+
     }
 
-    if( this.state.gameState === GameStates.GAME_ENDED_SHOW_RESULTS) {
+    if (this.state.gameState === GameStates.GAME_ENDED_SHOW_RESULTS) {
       return <ShowResults contract={this._contract} gameId={this.state.currentGameID} />
     }
 
@@ -332,46 +338,13 @@ export class Dapp extends React.Component {
     );
 
   }
-
-  componentWillUnmount() {
-    // We poll the user's balance, so we have to stop doing that when Dapp gets unmounted
-    // this._stopPollingData();
-  }
+  // end of render()
 
 
 
 
 
 
-  // function run when the user clicks "connect wallet"
-  async _connectWallet() {
-
-    // To connect to the user's wallet, we have to run this method. It returns a promise that will resolve to the user's address.
-    const [userAddress] = await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-    if (!userAddress) {
-      alert("There was an error connecting to your wallet. Please try again.");
-      return;
-    }
-
-    // Once we have the address, we can initialize the application.
-
-    // First we check the network
-    this._checkNetwork();
-
-    this._initialize(userAddress);
-
-    // We reinitialize it whenever the user changes their account.
-    window.ethereum.on("accountsChanged", ([newAddress]) => {
-      // this._stopPollingData();
-      // `accountsChanged` event can be triggered with an undefined newAddress. To avoid errors, we reset the dapp state 
-      if (newAddress === undefined) {
-        return this._resetState();
-      }
-
-      this._initialize(newAddress);
-    });
-  }
 
   // This method initializes the dapp
   _initialize(userAddress) {
@@ -399,19 +372,33 @@ export class Dapp extends React.Component {
       console.log("Contract name not found");
     }
     this.setState({ contractName: cName });
-    
+
     this._verifyColors();
+    this.initListeners();
+
+  }
 
 
 
-    // EVENT LISTENERS ----------------
+
+
+
+
+
+
+
+
+
+
+  // EVENT LISTENERS --------------------
+  initListeners() {
 
     // Set up an event listener for the GameCreated event
     this._contract.on("GameCreated", async (myGameIDFromEvent, creator) => {
 
 
       console.log(`A game was created with ID: ${myGameIDFromEvent}, by: ${creator}`);
-      
+
       if (!addressesEqual(creator, this.state.userAddress)) {
         console.log("I am not the creator, so not updating the game state");
         return;
@@ -427,13 +414,13 @@ export class Dapp extends React.Component {
 
       // Update the game state to indicate the game creation is complete
       this.setState({
-        gameState: GameStates.CREATED, 
+        gameState: GameStates.CREATED,
         currentGameID: myGameIDFromEvent.toNumber(),
         guessesLeft: newGuessesLeft,
         turnsLeft: newTurnsLeft,
       });
     });
-    
+
     // I JOINED THE GAME, OR SOMEONE ELSE JOINED THE GAME
     // listen to the EVENT that is fired when any player joins any game. TODO: is it any?
     this._contract.on("GameJoined", (eventGameID, player) => {
@@ -442,17 +429,17 @@ export class Dapp extends React.Component {
       if (this.state.gameState == GameStates.CREATED) {
         if (this.state.currentGameID != eventGameID.toNumber()) return;
 
-        this.setState({gameState: GameStates.JOINED});
-        this.setState({currentGameID: eventGameID.toNumber()});
+        this.setState({ gameState: GameStates.JOINED });
+        this.setState({ currentGameID: eventGameID.toNumber() });
 
         this._contract.startGame(this.state.currentGameID);
       }
 
-      if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION){
+      if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION) {
         if (!addressesEqual(player, this.state.userAddress)) return;
 
-        this.setState({gameState: GameStates.JOINED});
-        this.setState({currentGameID: eventGameID.toNumber()});
+        this.setState({ gameState: GameStates.JOINED });
+        this.setState({ currentGameID: eventGameID.toNumber() });
       }
 
     });
@@ -469,9 +456,9 @@ export class Dapp extends React.Component {
       console.log(`Event GameStarted recieved. GameID: ${eventGameID}, The codeMaker is: ${codeMakerAddress}`);
 
       if (addressesEqual(codeMakerAddress, this.state.userAddress)) {
-        this.setState({gameState: GameStates.AWAITING_YOUR_COMMIT});
+        this.setState({ gameState: GameStates.AWAITING_YOUR_COMMIT });
       } else {
-        this.setState({gameState: GameStates.AWAITING_OPPONENTS_COMMIT});
+        this.setState({ gameState: GameStates.AWAITING_OPPONENTS_COMMIT });
       }
 
     });
@@ -483,13 +470,13 @@ export class Dapp extends React.Component {
 
       console.log(`Event CodeCommitted recieved. GameID: ${eventGameID}, The code hash is: ${codeHash}`);
 
-      if (this.state.gameState == GameStates.AWAITING_YOUR_COMMIT ){
+      if (this.state.gameState == GameStates.AWAITING_YOUR_COMMIT) {
         // se ho committato il codice, ora devo attendere che l'altro giocatore propornga la sua guess
-        this.setState({gameState: GameStates.AWAITING_OPPONENTS_GUESS});
+        this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS });
 
-      } else if (this.state.gameState == GameStates.AWAITING_OPPONENTS_COMMIT ){
+      } else if (this.state.gameState == GameStates.AWAITING_OPPONENTS_COMMIT) {
         // se l'altro giocatore ha committato il suo codice, ora devo dare la mia guess
-        this.setState({gameState: GameStates.AWAITING_YOUR_GUESS});
+        this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
       } else {
         alert("Error in on CodeCommitted");
       }
@@ -501,21 +488,21 @@ export class Dapp extends React.Component {
     this._contract.on("CodeGuessed", async (eventGameID, guessedCode, turnsLeft) => {
       if (this.state.gameState !== GameStates.AWAITING_OPPONENTS_GUESS) return;
       if (this.state.currentGameID != eventGameID) return;
-    
+
       console.log(`Event CodeGuessed received. GameID: ${eventGameID}, The guessed code is: ${guessedCode}`);
 
-      this.setState({turnsLeft: turnsLeft});
-    
+      this.setState({ turnsLeft: turnsLeft });
+
       const secretCode = this.state.secretCode;
       const { correctColorAndPosition, correctColorWrongPosition } = calculateFeedback(secretCode, guessedCode);
-    
+
       try {
         this.setState({ gameState: GameStates.AWAITING_YOUR_FEEDBACK });
 
         await this._contract.giveFeedback(eventGameID, correctColorAndPosition, correctColorWrongPosition);
         console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
 
-        if(correctColorAndPosition == N) {
+        if (correctColorAndPosition == N) {
           alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
           await this._contract.revealCode(eventGameID, this.state.secretCode);
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
@@ -558,13 +545,13 @@ export class Dapp extends React.Component {
       }
     });
 
-    this._contract.on("CodeRevealed", (eventGameID, secretCode) => {
-      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL && this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK ) return;
+    this._contract.on("CodeRevealed", async (eventGameID, secretCode) => {
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL && this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
-      
+
       console.log("The other player has revealed their secret code!");
 
-      if( this.didTheyCheat(secretCode) ){
+      if (this.didTheyCheat(secretCode)) {
         alert("L'altro sembra aver barato! ora facciamo ricorso"); // TODO: handle RICORSO
       } else {
         alert("Tutto regolare! Non facciamo ricorso");
@@ -572,7 +559,12 @@ export class Dapp extends React.Component {
         this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
       }
 
-      
+
+      this.setState({ userAddress });
+      await this.verifyColorsData();
+      this.contract.on("CodeCommitted", (gameID) => {
+        this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
+      });
     });
 
 
@@ -584,21 +576,49 @@ export class Dapp extends React.Component {
         alert("Gioco finito!");
         this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
       } else {
-        if(addressesEqual(this.state.userAddress, codeMaker)) {
+        if (addressesEqual(this.state.userAddress, codeMaker)) {
           console.log("You are the codeMaker now!");
-          this.setState({ gameState: GameStates.AWAITING_YOUR_COMMIT});
+          this.setState({ gameState: GameStates.AWAITING_YOUR_COMMIT });
         } else {
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_COMMIT });
         }
-        
+
       }
     });
 
-  }
 
-  didTheyCheat(secretCode) {
-    // TODO: implementare
-    return false;
+  }
+  // END OF EVENT LISTENERS ------------------
+
+  // OTHER METHODS ---------------------------
+  // function run when the user clicks "connect wallet"
+  async _connectWallet() {
+
+    // To connect to the user's wallet, we have to run this method. It returns a promise that will resolve to the user's address.
+    const [userAddress] = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    if (!userAddress) {
+      alert("There was an error connecting to your wallet. Please try again.");
+      return;
+    }
+
+    // Once we have the address, we can initialize the application.
+
+    // First we check the network
+    this._checkNetwork();
+
+    this._initialize(userAddress);
+
+    // We reinitialize it whenever the user changes their account.
+    window.ethereum.on("accountsChanged", ([newAddress]) => {
+      // this._stopPollingData();
+      // `accountsChanged` event can be triggered with an undefined newAddress. To avoid errors, we reset the dapp state 
+      if (newAddress === undefined) {
+        return this._resetState();
+      }
+
+      this._initialize(newAddress);
+    });
   }
 
 
@@ -629,9 +649,20 @@ export class Dapp extends React.Component {
     }
   }
 
+  didTheyCheat(secretCode) {
+    // TODO: implementare
+    return false;
+  }
 
 
-  // other functions
+  // This method checks if the selected network is Localhost:8545
+  _checkNetwork() {
+    if (window.ethereum.networkVersion !== HARDHAT_NETWORK_ID) {
+      this._switchChain();
+    }
+  }
+
+
 
   // This method just clears part of the state.
   _dismissTransactionError() {
@@ -666,21 +697,14 @@ export class Dapp extends React.Component {
     await this._initialize(this.state.userAddress);
   }
 
-  // This method checks if the selected network is Localhost:8545
-  _checkNetwork() {
-    if (window.ethereum.networkVersion !== HARDHAT_NETWORK_ID) {
-      this._switchChain();
-    }
-  }
-
-
-
-
-
-
+  // END OF OTHER METHODS
 
 }
+// END OF CLASS DEFINITION
 
+
+
+// HELPER FUNCTIONS
 
 function addressesEqual(addr1, addr2) {
   return addr1.toString().toLowerCase() === addr2.toString().toLowerCase();
