@@ -8,7 +8,15 @@ export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
             alert("Please enter a game ID.");
             return;
         }
-        const gameStake = await contract.getGameStake(gameID);
+
+        let gameStake = 0;
+        gameStake = await contract.getGameStake(gameID); // TODO: non permettere steak 0 nel client
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        if (gameStake == 0) {
+            alert("Please try again in a few seconds! The smart contract is not ready yet.");
+            return;
+        }
 
         alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
         // TODO: make em choose

@@ -20,6 +20,7 @@ import { WalletInfo } from "./WalletInfo";
 import { CreateNewGame } from "./CreateNewGame";
 import { CommitSecretCode } from "./CommitSecretCode";
 import { MakeGuess } from "./MakeGuess";
+import { ShowResults } from "./ShowResults";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -30,8 +31,8 @@ const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
 const N = 4; // Number of colors in the code
 const M = 6; // Number of possible colors
-const NT = 10; // Number of turns
-const NG = 12; // Number of guesses per turn
+const NT = 2; // Number of turns
+const NG = 2; // Number of guesses per turn
 const K = 5; // Extra points for unbroken code
 const DISPUTE_SECONDS = 10; //TDisp
 
@@ -63,6 +64,7 @@ const GameStates = Object.freeze({
   AWAITING_OPPONENTS_DISPUTE: 'Awaiting Other Player to choose to dispute or not',
   AWAITING_YOUR_DISPUTE: 'Awaiting for you to choose to dispute or not',
   AWAITING_YOUR_DISPUTE_DENIED: 'You choose not to dispute. Waiting for the SC to tell us the number of turns left.',
+  GAME_ENDED_SHOW_RESULTS: 'Game ended - we can now show the results',
 });
 
 
@@ -89,7 +91,8 @@ export class Dapp extends React.Component {
       colorsVerified: false,
       currentGameID: undefined,
       secretCode: undefined,
-      triesLeft: undefined,
+      guessesLeft: undefined,
+      turnsLeft: undefined,
     };
 
     this.state = this.initialState;
@@ -140,24 +143,31 @@ export class Dapp extends React.Component {
     // if there is no game in progress, show buttons to join one
     if(this.state.gameState === GameStates.NOT_CREATED) {
       return(
-        <div className="row">
-          <div className="col-12">
+        <div className="container">
+          <article>
 
+            <h1>Welcome to Mastermind!</h1>
 
+            <hr />
+              <WalletInfo
+                provider={this._ethersProvider}
+                account={this.state.userAddress}
+              />
 
-            <WalletInfo
-              provider={this._ethersProvider}
-              account={this.state.userAddress}
-            />
+            <hr />
 
-            <CreateNewGame
-              contract={this._contract}
-              ethers={ethers}
-              updateGameState={(gameState) => this.setState({gameState})}
-              updateGameID={(gameID) => this.setState({currentGameID: gameID})}
-              GameStates={GameStates}
-              currentGameID={this.state.currentGameID}
-            />
+            <h4>Create a Game</h4>
+              <CreateNewGame
+                contract={this._contract}
+                ethers={ethers}
+                updateGameState={(gameState) => this.setState({gameState})}
+                updateGameID={(gameID) => this.setState({currentGameID: gameID})}
+                GameStates={GameStates}
+                currentGameID={this.state.currentGameID}
+              />
+
+            <hr />
+            <h4>Find a random Game</h4>
 
             {/* TODO: implement*/}
             <FindRandomGame
@@ -165,13 +175,22 @@ export class Dapp extends React.Component {
 
             <hr />
 
+            <h4>Join an existing Game</h4>
+
             <JoinGameWithAddress
               contract={this._contract}
               updateGameState={(gameState) => this.setState({gameState})}
               GameStates={GameStates}
             />
 
-          </div>
+            {this.state.transactionError && (
+                <TransactionErrorMessage
+                  message={this._getRpcErrorMessage(this.state.transactionError)}
+                  dismiss={() => this._dismissTransactionError()}
+                />
+            )}
+
+          </article>
         </div>
       );
     }
@@ -219,11 +238,14 @@ export class Dapp extends React.Component {
 
     if (this.state.gameState === GameStates.AWAITING_YOUR_GUESS) {
       return (
-        <MakeGuess
-          contract={this._contract}
-          gameId={this.state.currentGameID}
-          onGuessMade={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK })}
-        />
+        <article>
+          <MakeGuess
+            contract={this._contract}
+            gameId={this.state.currentGameID}
+            onGuessMade={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK })}
+          />
+          <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
+        </article>
       );
     }
 
@@ -232,6 +254,7 @@ export class Dapp extends React.Component {
     if(this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
       return(
         <Loading message={"Waiting for the other player to make their guess..."} />
+        
       );
     }
 
@@ -245,6 +268,14 @@ export class Dapp extends React.Component {
     if(this.state.gameState === GameStates.AWAITING_YOUR_FEEDBACK) {
       return(
         <Loading message={"Recieved the opponent's guess. Giving feedback..."} />
+      );
+    }
+
+    if (this.state.gameState === GameStates.AWAITING_OPPONENTS_REVEAL) {
+      return (
+        <Loading
+          message={"Waiting for the other player to reveal their secret code..."}
+        />
       );
     }
 
@@ -262,75 +293,44 @@ export class Dapp extends React.Component {
               }
             }
           >Dont dispute</button>
+          <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </div>
       );
     }
 
     // AWAITING A POSSIBLE DISPUTE
     // FINCHé non arriva endTurn, l'altro giocatore potrebbe fare una disputa
-    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_DISPUTE) {
-      <Loading message={" waiting for the other player to choose if they want to make a dispute"} />
+    if(this.state.gameState == GameStates.AWAITING_OPPONENTS_DISPUTE) {
+      return(
+        <article> 
+          <Loading message={"Waiting for the other player to choose if they want to make a dispute"} />
+          <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
+        </article>
+      );
     }
 
 
     if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE_DENIED) {
-      return <Loading message={"Waiting for next phase..."} />
+      return(
+        <article> 
+          <Loading message={"Waiting for next phase..."} />
+          <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
+        </article>
+      );
+        
+    }
+
+    if( this.state.gameState === GameStates.GAME_ENDED_SHOW_RESULTS) {
+      return <ShowResults contract={this._contract} gameId={this.state.currentGameID} />
     }
 
 
 
+    // DEFAULT
     return (
       <p>ERROR: gameState has an unexpected value: {this.state.gameState}</p>
     );
 
-
-    // MAIN APP VECCHIA
-    // If everything is loaded, we finally render the actual application.
-    return (
-      <div className="container p-4">
-        <div className="row">
-          <div className="col-12">
-            <h1>
-              Welcome to {this.state.contractName}!
-            </h1>
-            <p>
-              You can choose between these colors {this.colorsData && this.colorsData.map(color => color.name).join(", ")}.
-            </p>
-          </div>
-        </div>
-
-        <hr />
-
-        <div className="row">
-          <div className="col-12">
-
-              
-            {/*
-              WAITING FOR TRANSACTION MESSAGE
-              Sending a transaction isn't an immediate action. You have to wait for it to be mined. If we are waiting for one, we show a message here.
-            */}
-            {this.state.txBeingSent && (
-              <WaitingForTransactionMessage txHash={this.state.txBeingSent} />
-            )}
-
-            {/*
-              TRANSACTION ERROR
-              Sending a transaction can fail in multiple ways. If that happened, we show a message here.
-            */}
-            {this.state.transactionError && (
-              <TransactionErrorMessage
-                message={this._getRpcErrorMessage(this.state.transactionError)}
-                dismiss={() => this._dismissTransactionError()}
-              />
-            )}
-          </div>
-        </div>
-
-
-
-              
-      </div>
-    );
   }
 
   componentWillUnmount() {
@@ -407,7 +407,7 @@ export class Dapp extends React.Component {
     // EVENT LISTENERS ----------------
 
     // Set up an event listener for the GameCreated event
-    this._contract.on("GameCreated", (myGameIDFromEvent, creator) => {
+    this._contract.on("GameCreated", async (myGameIDFromEvent, creator) => {
 
 
       console.log(`A game was created with ID: ${myGameIDFromEvent}, by: ${creator}`);
@@ -422,9 +422,16 @@ export class Dapp extends React.Component {
         return;
       }
 
+      const [newGuessesLeft, newTurnsLeft] = await this._contract.getGuessesAndTurnsLeft(myGameIDFromEvent);
+
 
       // Update the game state to indicate the game creation is complete
-      this.setState({gameState: GameStates.CREATED, currentGameID: myGameIDFromEvent.toNumber()});
+      this.setState({
+        gameState: GameStates.CREATED, 
+        currentGameID: myGameIDFromEvent.toNumber(),
+        guessesLeft: newGuessesLeft,
+        turnsLeft: newTurnsLeft,
+      });
     });
     
     // I JOINED THE GAME, OR SOMEONE ELSE JOINED THE GAME
@@ -491,11 +498,13 @@ export class Dapp extends React.Component {
 
 
 
-    this._contract.on("CodeGuessed", async (eventGameID, guessedCode) => {
+    this._contract.on("CodeGuessed", async (eventGameID, guessedCode, turnsLeft) => {
       if (this.state.gameState !== GameStates.AWAITING_OPPONENTS_GUESS) return;
       if (this.state.currentGameID != eventGameID) return;
     
       console.log(`Event CodeGuessed received. GameID: ${eventGameID}, The guessed code is: ${guessedCode}`);
+
+      this.setState({turnsLeft: turnsLeft});
     
       const secretCode = this.state.secretCode;
       const { correctColorAndPosition, correctColorWrongPosition } = calculateFeedback(secretCode, guessedCode);
@@ -510,6 +519,13 @@ export class Dapp extends React.Component {
           alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
           await this._contract.revealCode(eventGameID, this.state.secretCode);
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
+        } else if (turnsLeft == 0) {
+          console.log("The other player has ran out of guesses. Revealing code.");
+          await this._contract.revealCode(eventGameID, this.state.secretCode);
+          this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
+        } else {
+          console.log("Waiting for other player to give their next guess.");
+          this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS });
         }
       } catch (error) {
         console.error("Error giving feedback:", error);
@@ -519,31 +535,31 @@ export class Dapp extends React.Component {
 
 
 
-    this._contract.on("CodeGuessedSuccessfully", (eventGameID, codeMakerAddress) => {
+    this._contract.on("CodeGuessedSuccessfully", (eventGameID, codeMakerAddress, turnsLeft) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
       alert("YOU GUESSED CORRECTLY!"); // TODO: handle victory
-      this.setState({ gameState: GameStates.AWAITING_NEXT_TURNPHASE }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni
+      this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni
     });
 
-    this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, triesLeft) => {
+    this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, guessesLeft) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
       alert("YOU GUESSED INCORRECTLY!"); // TODO: handle
 
-      if (triesLeft == 0) {
+      if (guessesLeft == 0) {
         alert("Hai finito i tentativi senza indovinare! Aspettiamo che l'altro giocatore faccia reveal.");
         this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
       } else {
-        this.setState({ triesLeft: triesLeft });
+        this.setState({ guessesLeft: guessesLeft });
         this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
       }
     });
 
     this._contract.on("CodeRevealed", (eventGameID, secretCode) => {
-      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL) return;
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL && this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK ) return;
       if (this.state.currentGameID != eventGameID) return;
       
       console.log("The other player has revealed their secret code!");
@@ -566,13 +582,16 @@ export class Dapp extends React.Component {
 
       if (turnsLeft == 0) {
         alert("Gioco finito!");
-        // TODO: ottieni il vincitore
+        this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
       } else {
-        return;
+        if(addressesEqual(this.state.userAddress, codeMaker)) {
+          console.log("You are the codeMaker now!");
+          this.setState({ gameState: GameStates.AWAITING_YOUR_COMMIT});
+        } else {
+          this.setState({ gameState: GameStates.AWAITING_OPPONENTS_COMMIT });
+        }
         
       }
-
-
     });
 
   }

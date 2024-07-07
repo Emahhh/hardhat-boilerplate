@@ -20,12 +20,12 @@ contract Mastermind {
 
 
     // Game parameters
-    uint public constant N = 4; // Number of colors in the code
-    uint public constant M = 6; // Number of possible colors
-    uint public constant NT = 10; // Number of turns
-    uint public constant NG = 12; // Number of guesses per turn
-    uint public constant K = 5; // Extra points for unbroken code
-    uint public constant DISPUTE_SECONDS = 10; //TDisp
+    int8 public constant N = 4; // Number of colors in the code
+    int8 public constant M = 6; // Number of possible colors
+    int8 public constant NT = 2; // Number of turns
+    int8 public constant NG = 2; // Number of guesses per turn
+    int8 public constant K = 5; // Extra points for unbroken code
+    int8 public constant DISPUTE_SECONDS = 10; //TDisp
 
     enum GameState { Created, Joined, InProgress, Ended }
     enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
@@ -47,15 +47,15 @@ contract Mastermind {
         GameState state;
         TurnPhase phase;
         address codeMakerAddress;
-        uint256 guessesCounter;
-        uint turnsCounter;
+        int8 guessesCounter;
+        int8 turnsCounter;
         string[NG] currentTurnGuesses;
         Feedback[NG] currentTurnFeedbacks;
     }
 
     struct Feedback {
-        uint256 correctColorAndPositionFeedback;
-        uint256 correctColorWrongPositionFeedback;
+        int8 correctColorAndPositionFeedback;
+        int8 correctColorWrongPositionFeedback;
     }
 
     // storage for all the different games
@@ -66,13 +66,13 @@ contract Mastermind {
     event GameJoined(uint gameId, address opponent);
     event GameStarted(uint gameId, address codeMakerAddress);
     event CodeCommitted(uint gameId, bytes32 secretHash);
-    event CodeGuessed(uint gameId, string guess);
+    event CodeGuessed(uint gameId, string guess, int8 guessesLeft);
     event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
     event CodeRevealed(uint gameId, string secretCode);
     event GameEnded(uint gameId, address winner);
-    event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
-    event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint triesLeft);
-    event DisputeDenied(uint gameId, address codeMakerAddress, uint turnsLeft);
+    event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress, int8 turnsLeft);
+    event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, int8 guessesLeft);
+    event DisputeDenied(uint gameId, address codeMakerAddress, int8 turnsLeft);
 
 
 
@@ -105,7 +105,18 @@ contract Mastermind {
 
     // END OF MODIFIERS -------
 
+    function winner(uint gameId) external view returns (address) {
+        Game storage game = games[gameId];
+        require(game.state == GameState.Ended, "Game has not ended yet");
 
+        // TODO: non so se va bene
+        // TODO: what about ties?
+        if (game.codeMakerScore > game.codeBreakerScore) {
+            return game.creator;
+        } else {
+            return game.opponent;
+        }
+    }
 
 
     function createGame() external payable {
@@ -186,43 +197,45 @@ contract Mastermind {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
         require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can make guesses");
-        require(game.currentTurnFeedbacks.length >= NG, "No tries left");
+        int8 guessesLeft = NG - game.guessesCounter;
+        require(guessesLeft > 0, "No tries left");
 
         // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
         // require(guess.length == N, "Invalid guess length");
-
-        game.currentTurnGuesses[game.guessesCounter] = guess;
+        uint256 guessesCounterUint256 = uint256(int256(game.guessesCounter));
+        game.currentTurnGuesses[guessesCounterUint256] = guess;
         game.guessesCounter++;
+        guessesLeft = NG - game.guessesCounter;
         game.phase = TurnPhase.Feedback;
 
-        emit CodeGuessed(gameId, guess); // TODO: dire di chi è il turno di dare il feedback
+        emit CodeGuessed(gameId, guess, guessesLeft); // TODO: dire di chi è il turno di dare il feedback
         console.log("!!! The codeBreaker has given their guess. emitting the event CodeGuessed");
     }
 
     
-    function giveFeedback(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
+    function giveFeedback(uint gameId, int8 correctColorAndPosition, int8 correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
         Game storage game = games[gameId];
         require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can give feedback");
-        require(game.currentTurnFeedbacks.length >= NG, "No tries left");
+        int8 guessesLeft = NG - game.guessesCounter;
 
         // TODO: Validate feedback
-        game.currentTurnFeedbacks[game.guessesCounter-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
+        uint256 guessesCounterUint256 = uint256(int256(game.guessesCounter));
+        game.currentTurnFeedbacks[guessesCounterUint256-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
 
-
-        uint triesLeft = NG - game.guessesCounter;
+        game.phase = TurnPhase.Guess;
 
         if (correctColorAndPosition == N) {
             console.log ("The codeMaker has given feedback, the code is correct! The codeMaker guessed! Time to reveal the code!");
             game.phase = TurnPhase.Reveal;
-            emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress);
+            emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress, guessesLeft);
         } else {
             console.log ("The codeMaker has given feedback, the code is not correct.");
 
-            if (triesLeft == 0) {
+            if (guessesLeft == 0) {
                 console.log ("!!! No turns left!");
                 game.phase = TurnPhase.Reveal;
-                emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, triesLeft);
             }
+            emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, guessesLeft);
         }
 
     }
@@ -262,7 +275,7 @@ contract Mastermind {
         game.codeMakerScore++; // TODO: assegna il numero di punti in base al testo non ricordo
 
         game.turnsCounter++;
-        uint turnsLeft = NG - game.guessesCounter;
+        int8 turnsLeft = NG - game.guessesCounter;
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
@@ -292,6 +305,11 @@ contract Mastermind {
 
     function accuseAFK(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.InProgress) {
         // Implement AFK accusation logic
+    }
+
+    function getGuessesAndTurnsLeft(uint gameId) external view returns (int8, int8) {
+        Game storage game = games[gameId];
+        return (NG - game.guessesCounter, NT - game.turnsCounter);
     }
 
 }
