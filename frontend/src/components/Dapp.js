@@ -198,7 +198,7 @@ export class Dapp extends React.Component {
       return <CommitSecretCode
         contract={this._contract}
         gameId={this.state.currentGameID}
-        onCodeCommitted={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
+        onCommit={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
         updateSecretCode={(code) => this.setState({ secretCode: code })}
       />
     }
@@ -443,7 +443,7 @@ export class Dapp extends React.Component {
 
 
     this._contract.on("CodeCommitted", (eventGameID, codeHash) => {
-      if (this.state.gameState != GameStates.AWAITING_YOUR_COMMIT || GameStates.AWAITING_OPPONENTS_COMMIT) return;
+      if (this.state.gameState != GameStates.AWAITING_YOUR_COMMIT && this.state.gameState != GameStates.AWAITING_OPPONENTS_COMMIT) return;
       if (this.state.currentGameID != eventGameID) return;
 
       console.log(`Event CodeCommitted recieved. GameID: ${eventGameID}, The code hash is: ${codeHash}`);

@@ -175,6 +175,7 @@ contract Mastermind {
         game.phase = TurnPhase.Guess;
 
         emit CodeCommitted(gameId, secretHash); // TODO: dire chi è il codemaker
+        console.log("!!! Fired CodeCommitted event. Game ID: ", gameId);
     }
 
     function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
