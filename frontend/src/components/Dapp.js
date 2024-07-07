@@ -58,6 +58,11 @@ const GameStates = Object.freeze({
   AWAITING_OPPONENTS_GUESS: 'Awaiting Other Player Guess - we are waiting for the other player to guess',
   AWAITING_YOUR_FEEDBACK: 'Awaiting Your Feedback - it is your turn to give feedback.',
   AWAITING_OPPONENTS_FEEDBACK: 'Awaiting Other Player Feedback - we are waiting for the other player to give feedback',
+  AWAITING_YOUR_REVEAL: 'Awaiting Your Reveal - it is your turn to reveal the secret code.',
+  AWAITING_OPPONENTS_REVEAL: 'Awaiting Other Player Reveal - we are waiting for the other player to reveal the secret code',
+  AWAITING_OPPONENTS_DISPUTE: 'Awaiting Other Player to choose to dispute or not',
+  AWAITING_YOUR_DISPUTE: 'Awaiting for you to choose to dispute or not',
+  AWAITING_YOUR_DISPUTE_DENIED: 'You choose not to dispute. Waiting for the SC to tell us the number of turns left.',
 });
 
 
@@ -84,6 +89,7 @@ export class Dapp extends React.Component {
       colorsVerified: false,
       currentGameID: undefined,
       secretCode: undefined,
+      triesLeft: undefined,
     };
 
     this.state = this.initialState;
@@ -230,23 +236,45 @@ export class Dapp extends React.Component {
     }
 
 
-    // TODO: se ricevo l'evento CodeGuessed(è il mio turno), il client deve rispondere mandando un feedback usando contract.giveFeedback
-    // se l'opponent ha indovinato, aspetto di ricevere FeedbackGiven e poi devo pure fare revealCode
+    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_FEEDBACK) {
+      return(
+        <Loading message={"Waiting for the other player to give feedback on your guess..."} />
+      );
+    }
+
+    if(this.state.gameState === GameStates.AWAITING_YOUR_FEEDBACK) {
+      return(
+        <Loading message={"Recieved the opponent's guess. Giving feedback..."} />
+      );
+    }
 
     // SEND A DISPUTE
-    // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa
+    // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa, o accettare il fatto che non ho indovinato
     if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
       return(
-        <p>TODO: componente per fare la disputa</p>
+        <div>
+          <button onClick={function(){ alert("TODO: implement dispute")}}>Dispute</button>
+          <button
+            onClick={
+              function(){
+                this._contract.dontDispute(this.state.currentGameID);
+                this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
+              }
+            }
+          >Dont dispute</button>
+        </div>
       );
     }
 
     // AWAITING A POSSIBLE DISPUTE
     // FINCHé non arriva endTurn, l'altro giocatore potrebbe fare una disputa
-    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
-      return(
-        <p>We are waiting for the other player to choose if they want to make a dispute</p>
-      );
+    if(this.state.gameState === GameStates.AWAITING_OPPONENTS_DISPUTE) {
+      <Loading message={" waiting for the other player to choose if they want to make a dispute"} />
+    }
+
+
+    if(this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE_DENIED) {
+      return <Loading message={"Waiting for next phase..."} />
     }
 
 
@@ -456,11 +484,12 @@ export class Dapp extends React.Component {
         // se l'altro giocatore ha committato il suo codice, ora devo dare la mia guess
         this.setState({gameState: GameStates.AWAITING_YOUR_GUESS});
       } else {
-        console.log("Error in on CodeCommitted");
+        alert("Error in on CodeCommitted");
       }
 
-
     });
+
+
 
     this._contract.on("CodeGuessed", async (eventGameID, guessedCode) => {
       if (this.state.gameState !== GameStates.AWAITING_OPPONENTS_GUESS) return;
@@ -472,39 +501,85 @@ export class Dapp extends React.Component {
       const { correctColorAndPosition, correctColorWrongPosition } = calculateFeedback(secretCode, guessedCode);
     
       try {
+        this.setState({ gameState: GameStates.AWAITING_YOUR_FEEDBACK });
+
         await this._contract.giveFeedback(eventGameID, correctColorAndPosition, correctColorWrongPosition);
         console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
 
         if(correctColorAndPosition == N) {
           alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
-          // TODO: handle victory
+          await this._contract.revealCode(eventGameID, this.state.secretCode);
+          this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
         }
-        this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK });
       } catch (error) {
         console.error("Error giving feedback:", error);
       }
     });
+
+
+
 
     this._contract.on("CodeGuessedSuccessfully", (eventGameID, codeMakerAddress) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
       alert("YOU GUESSED CORRECTLY!"); // TODO: handle victory
+      this.setState({ gameState: GameStates.AWAITING_NEXT_TURNPHASE }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni
     });
 
     this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, triesLeft) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
-      alert("YOU GUESSED INCORRECTLY!"); 
-      // TODO: handle victory
+      alert("YOU GUESSED INCORRECTLY!"); // TODO: handle
+
+      if (triesLeft == 0) {
+        alert("Hai finito i tentativi senza indovinare! Aspettiamo che l'altro giocatore faccia reveal.");
+        this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
+      } else {
+        this.setState({ triesLeft: triesLeft });
+        this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
+      }
     });
-    
+
+    this._contract.on("CodeRevealed", (eventGameID, secretCode) => {
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL) return;
+      if (this.state.currentGameID != eventGameID) return;
+      
+      console.log("The other player has revealed their secret code!");
+
+      if( this.didTheyCheat(secretCode) ){
+        alert("L'altro sembra aver barato! ora facciamo ricorso"); // TODO: handle RICORSO
+      } else {
+        alert("Tutto regolare! Non facciamo ricorso");
+        this._contract.dontDispute(eventGameID);
+        this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
+      }
+
+      
+    });
 
 
+    this._contract.on("DisputeDenied", (eventGameID, codeMaker, turnsLeft) => {
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_DISPUTE && this.state.gameState != GameStates.AWAITING_YOUR_DISPUTE_DENIED) return;
+      if (this.state.currentGameID != eventGameID) return;
+
+      if (turnsLeft == 0) {
+        alert("Gioco finito!");
+        // TODO: ottieni il vincitore
+      } else {
+        return;
+        
+      }
 
 
+    });
 
+  }
+
+  didTheyCheat(secretCode) {
+    // TODO: implementare
+    return false;
   }
 
 

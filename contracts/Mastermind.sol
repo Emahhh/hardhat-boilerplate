@@ -48,6 +48,7 @@ contract Mastermind {
         TurnPhase phase;
         address codeMakerAddress;
         uint256 guessesCounter;
+        uint turnsCounter;
         string[NG] currentTurnGuesses;
         Feedback[NG] currentTurnFeedbacks;
     }
@@ -71,6 +72,8 @@ contract Mastermind {
     event GameEnded(uint gameId, address winner);
     event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
     event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint triesLeft);
+    event DisputeDenied(uint gameId, address codeMakerAddress, uint turnsLeft);
+
 
 
     // MODIFIERS --------------
@@ -122,6 +125,7 @@ contract Mastermind {
         myGame.phase= TurnPhase.Commit;
         myGame.codeMakerAddress = msg.sender;
         myGame.guessesCounter= 0;
+        myGame.turnsCounter = 0;
 
         // for (uint32 i=0; i < NG; i++) {
         //     myGame.currentTurnFeedbacks[i] = Feedback(0, 0);
@@ -233,6 +237,7 @@ contract Mastermind {
         game.phase = TurnPhase.WaitingForDispute;
 
         emit CodeRevealed(gameId, secretCode);
+        console.log("!!! The code has been revealed. Emitting CodeRevealed event. The code was: ", secretCode);
         // TODO: call endTurn(gameId)? maybe after the second for dispute
         // call endTurn after DISPUTE_SECONDS
 
@@ -247,42 +252,43 @@ contract Mastermind {
         // TODO: end the whole game
     }
 
-    // assigns the points, ends this turn and prepares the next turn
-    // TODO: il client del codebreaker mnostrerà 2 bottoni: disputa o finisci turno
-    function endTurn(uint gameId) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
+
+    // TODO: QUI VA LA LOGICA PER LA ASSEGNAZIONE DEI PUNTI E DEL NUOVO TURNO
+    function dontDispute(uint gameId) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
+        require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can dispute");
 
-        // Calculate points and update scores
-        // TODO: what if the codemaker cheated and didnt say anything when they guessed?
-        uint lastGuessIndex = game.guessesCounter - 1;
-        if(game.currentTurnFeedbacks[lastGuessIndex].correctColorAndPositionFeedback == N) {
-            game.codeMakerScore++;
-        } else {
-            game.codeBreakerScore++;
-        }
+        // assign points
+        game.codeMakerScore++; // TODO: assegna il numero di punti in base al testo non ricordo
 
-        // reset guesses and feedbacks
-        // game.currentTurnGuesses = new string[](NG);
-        // game.currentTurnFeedbacks = new Feedback[](NG);
-        game.guessesCounter = 0;
+        game.turnsCounter++;
+        uint turnsLeft = NG - game.guessesCounter;
 
-        // Swap roles
-        if (game.codeMakerAddress == msg.sender) {
-            game.codeMakerAddress = game.opponent;
-        } else {
-            game.codeMakerAddress = msg.sender;
-        }
-
-        // if the number of turns ended, let's announce the winner
-        if (game.codeBreakerScore + game.codeMakerScore >= NT) {
+        if (turnsLeft == 0) {
             game.state = GameState.Ended;
             address winner = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
-            emit GameEnded(gameId, winner);
+            console.log ("!!! The game ended! The winner is: ", winner);
         } else {
+
             game.phase = TurnPhase.Commit;
-            // TODO: emit evento per dire che: nuovo turno è iniziato, e quali sono i punteggi
+
+            // reset guesses and feedbacks
+            game.guessesCounter = 0;
+
+            // Swap roles
+            if (game.codeMakerAddress == msg.sender) {
+                game.codeMakerAddress = game.opponent;
+            } else {
+                game.codeMakerAddress = msg.sender;
+            }
         }
+
+        // TODO: 
+
+        emit DisputeDenied(gameId, game.codeMakerAddress, turnsLeft);
+        console.log("!!! The CodeBreaker doesnt want to dispte. Moving to the next turn. Fired DisputeDenied event. Game ID: ", gameId);
     }
+
 
     function accuseAFK(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.InProgress) {
         // Implement AFK accusation logic
