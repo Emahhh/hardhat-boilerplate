@@ -14,7 +14,7 @@ contract Mastermind {
         console.log("Fallback function called. Amount of Ether received:", msg.value);
         console.log("Sender address:", msg.sender);
     }
-    function supportsInterface(bytes4 interfaceId) public view returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return false;
     }
 
@@ -70,7 +70,7 @@ contract Mastermind {
     event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
     event CodeRevealed(uint gameId, string secretCode);
     event GameEnded(uint gameId, address winner);
-    event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress, int8 turnsLeft);
+    event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
     event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, int8 guessesLeft);
     event DisputeDenied(uint gameId, address codeMakerAddress, int8 turnsLeft);
 
@@ -227,7 +227,7 @@ contract Mastermind {
         if (correctColorAndPosition == N) {
             console.log ("The codeMaker has given feedback, the code is correct! The codeMaker guessed! Time to reveal the code!");
             game.phase = TurnPhase.Reveal;
-            emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress, guessesLeft);
+            emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress);
         } else {
             console.log ("The codeMaker has given feedback, the code is not correct.");
 
@@ -275,12 +275,12 @@ contract Mastermind {
         game.codeMakerScore++; // TODO: assegna il numero di punti in base al testo non ricordo
 
         game.turnsCounter++;
-        int8 turnsLeft = NG - game.guessesCounter;
+        int8 turnsLeft = NT - game.turnsCounter;
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
-            address winner = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
-            console.log ("!!! The game ended! The winner is: ", winner);
+            address winnerAdd = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
+            console.log ("!!! The game ended! The winner is: ", winnerAdd);
         } else {
 
             game.phase = TurnPhase.Commit;

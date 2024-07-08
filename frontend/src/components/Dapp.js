@@ -481,6 +481,8 @@ export class Dapp extends React.Component {
         alert("Error in on CodeCommitted");
       }
 
+      this.refreshTurnsAndGuessesLeft();
+
     });
 
 
@@ -514,6 +516,8 @@ export class Dapp extends React.Component {
           console.log("Waiting for other player to give their next guess.");
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS });
         }
+
+        this.refreshTurnsAndGuessesLeft();
       } catch (error) {
         console.error("Error giving feedback:", error);
       }
@@ -522,12 +526,12 @@ export class Dapp extends React.Component {
 
 
 
-    this._contract.on("CodeGuessedSuccessfully", (eventGameID, codeMakerAddress, turnsLeft) => {
+    this._contract.on("CodeGuessedSuccessfully", (eventGameID) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
       alert("YOU GUESSED CORRECTLY!"); // TODO: handle victory
-      this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni
+      this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni. ignoro il numero di turni?
     });
 
     this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, guessesLeft) => {
@@ -557,14 +561,8 @@ export class Dapp extends React.Component {
         alert("Tutto regolare! Non facciamo ricorso");
         this._contract.dontDispute(eventGameID);
         this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
+        this.refreshTurnsAndGuessesLeft();
       }
-
-
-      this.setState({ userAddress });
-      await this.verifyColorsData();
-      this.contract.on("CodeCommitted", (gameID) => {
-        this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
-      });
     });
 
 
@@ -591,6 +589,14 @@ export class Dapp extends React.Component {
   // END OF EVENT LISTENERS ------------------
 
   // OTHER METHODS ---------------------------
+
+  async refreshTurnsAndGuessesLeft() {
+    const [myGuessesLeft, myTurnsLeft] = await this._contract.getGuessesAndTurnsLeft(this.state.currentGameID);
+    this.setState({ guessesLeft: myGuessesLeft, turnsLeft: myTurnsLeft });
+  }
+
+
+
   // function run when the user clicks "connect wallet"
   async _connectWallet() {
 
