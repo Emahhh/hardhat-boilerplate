@@ -281,6 +281,15 @@ contract Mastermind {
             game.state = GameState.Ended;
             address winnerAdd = game.codeBreakerScore > game.codeMakerScore ? game.creator : game.opponent;
             console.log ("!!! The game ended! The winner is: ", winnerAdd);
+
+            uint stakeAmount = game.stake * 2;
+            // Transfer the stake to the winner
+            (bool success, ) = winnerAdd.call{value: stakeAmount}("");
+            require(success, "Transfer failed");
+
+            // Reset the stake for the game
+            game.stake = 0;
+
         } else {
 
             game.phase = TurnPhase.Commit;

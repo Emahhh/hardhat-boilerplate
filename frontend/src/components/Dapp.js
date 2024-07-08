@@ -28,21 +28,19 @@ const HARDHAT_NETWORK_ID = '31337';
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
-
-const N_len_of_code = 4; // Number of colors in the code
-const M_num_possible_colors = 4; // Number of possible colors
-const NT_num_of_turns = 2; // Number of turns
-const NG_num_of_guesses = 2; // Number of guesses per turn
-const K_extra_points = 5; // Extra points for unbroken code
-const DISPUTE_SECONDS = 10; //TDisp
-
-
 const COLORS_DATA = [
   { name: "Red", hex: "#FF0000" },
   { name: "Green", hex: "#00FF00" },
   { name: "Blue", hex: "#0000FF" },
   { name: "Yellow", hex: "#FFFF00" },
 ];
+
+const N_len_of_code = 4; // Number of colors in the code
+const M_num_possible_colors = COLORS_DATA.length; // Number of possible colors
+const NT_num_of_turns = 2; // Number of turns
+const NG_num_of_guesses = 2; // Number of guesses per turn
+const K_extra_points = 5; // Extra points for unbroken code
+const DISPUTE_SECONDS = 10; //TDisp
 
 // an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({
@@ -427,7 +425,9 @@ export class Dapp extends React.Component {
         this.setState({ gameState: GameStates.JOINED });
         this.setState({ currentGameID: eventGameID.toNumber() });
 
-        this._contract.startGame(this.state.currentGameID);
+        this._contract.startGame(this.state.currentGameID, {
+          gasLimit: 100000
+        });
       }
 
       if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION) {
