@@ -29,11 +29,11 @@ const HARDHAT_NETWORK_ID = '31337';
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
 
-const N = 4; // Number of colors in the code
-const M = 6; // Number of possible colors
-const NT = 2; // Number of turns
-const NG = 2; // Number of guesses per turn
-const K = 5; // Extra points for unbroken code
+const N_len_of_code = 4; // Number of colors in the code
+const M_num_possible_colors = 4; // Number of possible colors
+const NT_num_of_turns = 2; // Number of turns
+const NG_num_of_guesses = 2; // Number of guesses per turn
+const K_extra_points = 5; // Extra points for unbroken code
 const DISPUTE_SECONDS = 10; //TDisp
 
 
@@ -42,8 +42,6 @@ const COLORS_DATA = [
   { name: "Green", hex: "#00FF00" },
   { name: "Blue", hex: "#0000FF" },
   { name: "Yellow", hex: "#FFFF00" },
-  { name: "Black", hex: "#000000" },
-  { name: "White", hex: "#FFFFFF" }
 ];
 
 // an onject used as an enum (since we don't have enums in JS)
@@ -134,9 +132,6 @@ export class Dapp extends React.Component {
       );
     }
 
-    // SHOW LOADING
-    // se ancora non sono state caricate queste cose, mostrare loading
-    // TODO: decidere cosa aspettare 
     if (this.colorsVerified === false) {
       return <Loading message={"Verifying colors..."} />
     }
@@ -504,7 +499,7 @@ export class Dapp extends React.Component {
         await this._contract.giveFeedback(eventGameID, correctColorAndPosition, correctColorWrongPosition);
         console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
 
-        if (correctColorAndPosition == N) {
+        if (correctColorAndPosition == N_len_of_code) {
           alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
           await this._contract.revealCode(eventGameID, this.state.secretCode);
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
@@ -530,20 +525,19 @@ export class Dapp extends React.Component {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
-      alert("YOU GUESSED CORRECTLY!"); // TODO: handle victory
-      this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL }); // TODO: che ce metto qui? devo passare al prossimo turno cioè è il turno dell'a'tro di indovinare se non sono finite le afasi turni. ignoro il numero di turni?
+      alert("Your guess was correct! Congratulations!"); 
+      this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
     });
 
     this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, guessesLeft) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
-      alert("YOU GUESSED INCORRECTLY!"); // TODO: handle
-
       if (guessesLeft == 0) {
-        alert("Hai finito i tentativi senza indovinare! Aspettiamo che l'altro giocatore faccia reveal.");
+        alert("Your guess was not correct, and you have run out of guesses.");
         this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
       } else {
+        alert("Your guess was not correct, but you have " + guessesLeft + " guesses left!");
         this.setState({ guessesLeft: guessesLeft });
         this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
       }
@@ -721,11 +715,10 @@ function addressesEqual(addr1, addr2) {
 
 
 function calculateFeedback(secretCode, guessedCode) {
-  // Implement your Mastermind feedback calculation logic here
   let correctColorAndPosition = 0;
   let correctColorWrongPosition = 0;
 
-  // Convert secret code and guessed code to arrays for easier comparison
+  // Convert to arrays
   const secretArray = secretCode.split("");
   const guessedArray = guessedCode.split("");
 

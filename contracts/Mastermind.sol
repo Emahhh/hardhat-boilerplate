@@ -20,18 +20,18 @@ contract Mastermind {
 
 
     // Game parameters
-    int8 public constant N = 4; // Number of colors in the code
-    int8 public constant M = 6; // Number of possible colors
-    int8 public constant NT = 2; // Number of turns
-    int8 public constant NG = 2; // Number of guesses per turn
-    int8 public constant K = 5; // Extra points for unbroken code
+    int8 public constant N_len_of_code = 4; // Number of colors in the code
+    int8 public constant M_num_possible_colors = 4; // Number of possible colors
+    int8 public constant NT_num_of_turns = 2; // Number of turns
+    int8 public constant NG_num_of_guesses = 2; // Number of guesses per turn
+    int8 public constant K_extra_points = 5; // Extra points for unbroken code
     int8 public constant DISPUTE_SECONDS = 10; //TDisp
 
     enum GameState { Created, Joined, InProgress, Ended }
     enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
     WaitingForDispute }
 
-    string[] public colors = ["Red", "Green", "Blue", "Yellow", "Black", "White"];
+    string[] public colors = ["Red", "Green", "Blue", "Yellow"];
     function getColors() public view returns (string[] memory) {
         return colors;
     }
@@ -49,8 +49,8 @@ contract Mastermind {
         address codeMakerAddress;
         int8 guessesCounter;
         int8 turnsCounter;
-        string[NG] currentTurnGuesses;
-        Feedback[NG] currentTurnFeedbacks;
+        string[NG_num_of_guesses] currentTurnGuesses;
+        Feedback[NG_num_of_guesses] currentTurnFeedbacks;
     }
 
     struct Feedback {
@@ -138,7 +138,7 @@ contract Mastermind {
         myGame.guessesCounter= 0;
         myGame.turnsCounter = 0;
 
-        // for (uint32 i=0; i < NG; i++) {
+        // for (uint32 i=0; i < NG_num_of_guesses; i++) {
         //     myGame.currentTurnFeedbacks[i] = Feedback(0, 0);
         //     myGame.currentTurnGuesses[i] = " ";
         // }
@@ -197,7 +197,7 @@ contract Mastermind {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
         require(game.codeMakerAddress != msg.sender, "Only the CodeBreaker can make guesses");
-        int8 guessesLeft = NG - game.guessesCounter;
+        int8 guessesLeft = NG_num_of_guesses - game.guessesCounter;
         require(guessesLeft > 0, "No tries left");
 
         // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
@@ -205,7 +205,7 @@ contract Mastermind {
         uint256 guessesCounterUint256 = uint256(int256(game.guessesCounter));
         game.currentTurnGuesses[guessesCounterUint256] = guess;
         game.guessesCounter++;
-        guessesLeft = NG - game.guessesCounter;
+        guessesLeft = NG_num_of_guesses - game.guessesCounter;
         game.phase = TurnPhase.Feedback;
 
         emit CodeGuessed(gameId, guess, guessesLeft); // TODO: dire di chi è il turno di dare il feedback
@@ -216,7 +216,7 @@ contract Mastermind {
     function giveFeedback(uint gameId, int8 correctColorAndPosition, int8 correctColorWrongPosition) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Feedback) {
         Game storage game = games[gameId];
         require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can give feedback");
-        int8 guessesLeft = NG - game.guessesCounter;
+        int8 guessesLeft = NG_num_of_guesses - game.guessesCounter;
 
         // TODO: Validate feedback
         uint256 guessesCounterUint256 = uint256(int256(game.guessesCounter));
@@ -224,7 +224,7 @@ contract Mastermind {
 
         game.phase = TurnPhase.Guess;
 
-        if (correctColorAndPosition == N) {
+        if (correctColorAndPosition == N_len_of_code) {
             console.log ("The codeMaker has given feedback, the code is correct! The codeMaker guessed! Time to reveal the code!");
             game.phase = TurnPhase.Reveal;
             emit CodeGuessedSuccessfully(gameId, game.codeMakerAddress);
@@ -275,7 +275,7 @@ contract Mastermind {
         game.codeMakerScore++; // TODO: assegna il numero di punti in base al testo non ricordo
 
         game.turnsCounter++;
-        int8 turnsLeft = NT - game.turnsCounter;
+        int8 turnsLeft = NT_num_of_turns - game.turnsCounter;
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
@@ -309,7 +309,7 @@ contract Mastermind {
 
     function getGuessesAndTurnsLeft(uint gameId) external view returns (int8, int8) {
         Game storage game = games[gameId];
-        return (NG - game.guessesCounter, NT - game.turnsCounter);
+        return (NG_num_of_guesses - game.guessesCounter, NT_num_of_turns - game.turnsCounter);
     }
 
 }
