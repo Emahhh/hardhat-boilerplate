@@ -31,7 +31,7 @@ contract Mastermind {
     enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
     WaitingForDispute }
 
-    string[] public colors = ["Red", "Green", "Blue", "Yellow"];
+    string[] public colors = ["R", "G", "B", "Y"];
     function getColors() public view returns (string[] memory) {
         return colors;
     }
@@ -67,11 +67,10 @@ contract Mastermind {
     event GameStarted(uint gameId, address codeMakerAddress);
     event CodeCommitted(uint gameId, bytes32 secretHash);
     event CodeGuessed(uint gameId, string guess, int8 guessesLeft);
-    event FeedbackGiven(uint gameId, uint correctColorAndPosition, uint correctColorWrongPosition);
     event CodeRevealed(uint gameId, string secretCode);
     event GameEnded(uint gameId, address winner);
     event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
-    event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, int8 guessesLeft);
+    event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, int8 guessesLeft, int8 correctColorAndPosition, int8 correctColorWrongPosition);
     event DisputeDenied(uint gameId, address codeMakerAddress, int8 turnsLeft);
 
 
@@ -235,7 +234,7 @@ contract Mastermind {
                 console.log ("!!! No turns left!");
                 game.phase = TurnPhase.Reveal;
             }
-            emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, guessesLeft);
+            emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, guessesLeft, correctColorAndPosition, correctColorWrongPosition);
         }
 
     }

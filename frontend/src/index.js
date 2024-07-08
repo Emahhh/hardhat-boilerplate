@@ -1,6 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { Dapp } from "./components/Dapp";
+import "./styles.css";
+import "../node_modules/@picocss/pico/css/pico.indigo.min.css";
 
 
 // This is the entry point of your application, but it just renders the Dapp

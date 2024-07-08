@@ -28,15 +28,15 @@ const HARDHAT_NETWORK_ID = '31337';
 // This is an error code that indicates that the user canceled a transaction
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
-const COLORS_DATA = [
-  { name: "Red", hex: "#FF0000" },
-  { name: "Green", hex: "#00FF00" },
-  { name: "Blue", hex: "#0000FF" },
-  { name: "Yellow", hex: "#FFFF00" },
+const COLORS_CHOICES = [
+  { name: "Red", letter: "R", hex: "#FF0000" },
+  { name: "Green", letter: "G", hex: "#00FF00" },
+  { name: "Blue", letter: "B", hex: "#0000FF" },
+  { name: "Yellow", letter: "Y", hex: "#FFFF00" },
 ];
 
 const N_len_of_code = 4; // Number of colors in the code
-const M_num_possible_colors = COLORS_DATA.length; // Number of possible colors
+const M_num_possible_colors = COLORS_CHOICES.length; // Number of possible colors
 const NT_num_of_turns = 2; // Number of turns
 const NG_num_of_guesses = 2; // Number of guesses per turn
 const K_extra_points = 5; // Extra points for unbroken code
@@ -77,10 +77,10 @@ export class Dapp extends React.Component {
 
     // initial state of the dApp
     this.initialState = {
-      userAddress: undefined, // The user's address
+      userAddress: undefined, // The current user's address
       transactionError: undefined,
       networkError: undefined,
-      colorsData: COLORS_DATA,
+      colorsData: COLORS_CHOICES,
       contractName: undefined,
       txBeingSent: false,
       gameState: GameStates.NOT_CREATED,
@@ -89,6 +89,7 @@ export class Dapp extends React.Component {
       secretCode: undefined,
       guessesLeft: undefined,
       turnsLeft: undefined,
+      myGuessesAndFeedbacks: [],
     };
 
     this.state = this.initialState;
@@ -224,6 +225,9 @@ export class Dapp extends React.Component {
         gameId={this.state.currentGameID}
         onCommit={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
         updateSecretCode={(code) => this.setState({ secretCode: code })}
+        myGuessesAndFeedbacks={this.state.myGuessesAndFeedbacks}
+        colors={COLORS_CHOICES}
+        codeLength={N_len_of_code}
       />
     }
 
@@ -242,6 +246,10 @@ export class Dapp extends React.Component {
             contract={this._contract}
             gameId={this.state.currentGameID}
             onGuessMade={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_FEEDBACK })}
+            myGuessesAndFeedbacks={this.state.myGuessesAndFeedbacks}
+            setMyGuessesAndFeedbacks={(guesses) => this.setState({ myGuessesAndFeedbacks: guesses })}
+            colors={COLORS_CHOICES}
+            codeLength={N_len_of_code}
           />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
@@ -529,7 +537,7 @@ export class Dapp extends React.Component {
       this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
     });
 
-    this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, guessesLeft) => {
+    this._contract.on("CodeGuessedUnsccessfully", (eventGameID, codeMakerAddress, guessesLeft, correctColorAndPosition, correctColorWrongPosition) => {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
@@ -541,6 +549,13 @@ export class Dapp extends React.Component {
         this.setState({ guessesLeft: guessesLeft });
         this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
       }
+
+      // store the feedbacks in the state
+      const updatedGuesses = [...this.state.myGuessesAndFeedbacks];
+      const lastIndex = updatedGuesses.length - 1;
+      updatedGuesses[lastIndex].correctColorAndPosition = correctColorAndPosition;
+      updatedGuesses[lastIndex].correctColorWrongPosition = correctColorWrongPosition;
+      this.setState({ myGuessesAndFeedbacks: updatedGuesses });
     });
 
     this._contract.on("CodeRevealed", async (eventGameID, secretCode) => {
@@ -631,14 +646,14 @@ export class Dapp extends React.Component {
       const onChainColors = await this._contract.getColors();
 
       // Check if the length of colors matches
-      if (onChainColors.length !== COLORS_DATA.length) {
+      if (onChainColors.length !== COLORS_CHOICES.length) {
         throw new Error("Color arrays do not match in length");
       }
 
       // Check if each color matches in name and order
       for (let i = 0; i < onChainColors.length; i++) {
-        if (onChainColors[i] !== COLORS_DATA[i].name) {
-          throw new Error(`Color mismatch at index ${i}: ${onChainColors[i]} !== ${COLORS_DATA[i].name}`);
+        if (onChainColors[i] !== COLORS_CHOICES[i].name) {
+          throw new Error(`Color mismatch at index ${i}: ${onChainColors[i]} !== ${COLORS_CHOICES[i].name}`);
         }
       }
 
@@ -651,6 +666,11 @@ export class Dapp extends React.Component {
 
   didTheyCheat(secretCode) {
     // TODO: implementare
+
+    // check that the length is correct
+    // check that it is made by admitted colors
+    // check that the hashes match
+    
     return false;
   }
 
