@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export function ShowResults({ contract, gameId }) {
+export function ShowResults({ contract, gameId, currUser }) {
     const [winner, setWinner] = useState(null);
 
     useEffect(() => {
@@ -23,13 +23,23 @@ export function ShowResults({ contract, gameId }) {
         window.location.reload(); // This refreshes the page
     };
 
+    let message;
+
+    if (!winner){
+        message = <p aria-busy="true">The winner is...</p>
+    } else if (addressesEqual(winner, currUser)){
+        message = <p>You won! Congratulations.</p>
+    } else {
+        message = <p>You lost. The winner is {winner}</p>
+    }
+
     return (
         <div className="container">
             <div className="card">
                 <header>
                     <h2>Game ended!</h2>
                 </header>
-                <p>The winner is {winner || 'loading...'}</p>
+                {message}
                 <footer>
                     <button onClick={handlePlayAgain} className="button primary">
                         Play Again
@@ -41,3 +51,8 @@ export function ShowResults({ contract, gameId }) {
 
 
 };
+
+
+function addressesEqual(addr1, addr2) {
+    return addr1.toString().toLowerCase() === addr2.toString().toLowerCase();
+  }

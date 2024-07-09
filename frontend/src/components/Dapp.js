@@ -328,7 +328,10 @@ export class Dapp extends React.Component {
     }
 
     if (this.state.gameState === GameStates.GAME_ENDED_SHOW_RESULTS) {
-      return <ShowResults contract={this._contract} gameId={this.state.currentGameID} />
+      return <ShowResults 
+      contract={this._contract} 
+      gameId={this.state.currentGameID} 
+      currUser={this.state.currUser}/>
     }
 
 
@@ -652,12 +655,12 @@ export class Dapp extends React.Component {
 
       // Check if each color matches in name and order
       for (let i = 0; i < onChainColors.length; i++) {
-        if (onChainColors[i] !== COLORS_CHOICES[i].name) {
-          throw new Error(`Color mismatch at index ${i}: ${onChainColors[i]} !== ${COLORS_CHOICES[i].name}`);
+        if (onChainColors[i] !== COLORS_CHOICES[i].letter) {
+          throw new Error(`Color mismatch at index ${i}: ${onChainColors[i]} !== ${COLORS_CHOICES[i].letter}`);
         }
       }
 
-      console.log("Check successful! All colors match!");
+      console.log("Check _verifyColors() successful! All colors match!");
       this.state.colorsVerified = true;
     } catch (error) {
       console.error("Error verifying colors:", error);
