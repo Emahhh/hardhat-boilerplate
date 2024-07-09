@@ -25,12 +25,14 @@ export function ShowResults({ contract, gameId, currUser }) {
 
     let message;
 
-    if (!winner){
-        message = <p aria-busy="true">The winner is...</p>
-    } else if (addressesEqual(winner, currUser)){
-        message = <p>You won! Congratulations.</p>
+    if (winner && currUser){
+        if(addressesEqual(winner, currUser)){
+            message = <p>You won! Congratulations.</p> 
+        } else {
+            message = <p>You lost! The winner is {winner}.</p> 
+        }
     } else {
-        message = <p>You lost. The winner is {winner}</p>
+        message = <p aria-busy="true">The winner is...</p>
     }
 
     return (

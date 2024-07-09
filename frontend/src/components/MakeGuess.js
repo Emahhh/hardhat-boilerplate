@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-// import { ethers } from "ethers";
 
 export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks, setMyGuessesAndFeedbacks, codeLength, colors }) => {
     const [selectedColors, setSelectedColors] = useState(Array(codeLength).fill(colors[0]));
@@ -27,7 +26,7 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
             onGuessMade();
             setMyGuessesAndFeedbacks([
                 ...myGuessesAndFeedbacks,
-                { guess: guess, correctColorAndPosition: undefined, correctColorWrongPosition: undefined }
+                { guess: guess, correctColorAndPosition: 0, correctColorWrongPosition: 0 }
             ]);
         } catch (error) {
             console.error("Error making guess:", error);
@@ -36,15 +35,16 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
     };
 
     return (
-        <div className="p-4 mt-8 bg-gray-100 rounded-lg shadow-md">
+        <div className="p-8 mt-8 bg-gray-100 rounded-lg shadow-md neumorphic">
             <form onSubmit={handleSubmit}>
                 <div className="mb-4">
-                    <label className="block mb-2 text-lg font-bold">Make Your Guess:</label>
-                    <div className="flex space-x-2">
+                    <h1>Make Your Guess</h1>
+                    <p>Click on the colors to change them.</p>
+                    <div className="flex space-x-4">
                         {selectedColors.map((color, index) => (
                             <div key={index} className="flex flex-col items-center">
                                 <div
-                                    className="w-12 h-12 border-2 border-gray-300 rounded-full cursor-pointer"
+                                    className="w-12 h-12 border-2 border-gray-300 rounded-full shadow-md cursor-pointer neumorphic-inner"
                                     style={{ backgroundColor: color ? color.hex : "transparent" }}
                                     onClick={() => handleColorClick(index)}
                                 ></div>
@@ -53,31 +53,42 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
                     </div>
                 </div>
                 {errorMessage && <p className="mb-4 text-red-500">{errorMessage}</p>}
-                <button type="submit" className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-600">
-                    Make Guess
+                <button type="submit" className="px-4 py-2 font-bold neumorphic">
+                    Submit your guess
                 </button>
             </form>
-            <div className="mt-4">
-                <h2 className="mb-2 text-lg font-bold">Previous Guesses:</h2>
-                <ul>
-                    {myGuessesAndFeedbacks.map && myGuessesAndFeedbacks.map((item, index) => (
-                        <li key={index} className="flex items-center mb-2">
-                            <span className="flex space-x-2">
+            <hr className="border-gray-300" />
+            <div className="mt-8">
+                <h2 className="mb-4 text-lg font-bold">Previous Guesses:</h2>
+                <ul className="space-y-4">
+                    {myGuessesAndFeedbacks && myGuessesAndFeedbacks.length > 0 && myGuessesAndFeedbacks.map((item, index) => (
+                        <li key={index} className="flex items-center p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
+                            <div className="flex space-x-4">
                                 {item.guess.split("").map((letter, i) => {
                                     const color = colors.find(c => c.letter === letter);
                                     return (
                                         <div
                                             key={i}
-                                            className="w-6 h-6 border-2 border-gray-300 rounded-full"
-                                            style={{ backgroundColor: color.hex }}
+                                            className="w-8 h-8 border-2 border-gray-300 rounded-full neumorphic-inner"
+                                            style={{ backgroundColor: color ? color.hex : "transparent" }}
                                         ></div>
                                     );
                                 })}
-                            </span>
-                            <span className="ml-4">
-                                <span className="font-semibold">Correct Color and Position:</span> {item.correctColorAndPosition},
-                                <span className="ml-2 font-semibold">Correct Color Wrong Position:</span> {item.correctColorWrongPosition}
-                            </span>
+                            </div>
+                            <div className="flex items-center ml-8 space-x-2" data-tooltip={`Correct Color and Position: ${item.correctColorAndPosition}, Correct Color Wrong Position: ${item.correctColorWrongPosition}`}>
+                                {Array.from({ length: item.correctColorAndPosition }).map((_, i) => (
+                                    <div
+                                        key={`black-${i}`}
+                                        className="w-4 h-4 bg-gray-800 border-2 border-gray-400 rounded-full neumorphic-peg"
+                                    ></div>
+                                ))}
+                                {Array.from({ length: item.correctColorWrongPosition }).map((_, i) => (
+                                    <div
+                                        key={`white-${i}`}
+                                        className="w-4 h-4 bg-gray-100 border-2 border-gray-400 rounded-full neumorphic-peg"
+                                    ></div>
+                                ))}
+                            </div>
                         </li>
                     ))}
                 </ul>
