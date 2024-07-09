@@ -87,7 +87,7 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
                     ))}
                 </div>
                 {errorMessage && <p className="mb-4 text-red-500">{errorMessage}</p>}
-                <button type="submit" className="!w-40 !rounded-3xl !shadow-lg">
+                <button onClick={handleSubmit} className="!w-40 !rounded-3xl !shadow-lg">
                     Submit guess
                 </button>
             </div>
