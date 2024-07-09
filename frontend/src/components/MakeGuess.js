@@ -35,31 +35,10 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
     };
 
     return (
-        <div className="p-8 mt-8 bg-gray-100 rounded-lg shadow-md neumorphic">
-            <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                    <h1>Make Your Guess</h1>
-                    <p>Click on the colors to change them.</p>
-                    <div className="flex space-x-4">
-                        {selectedColors.map((color, index) => (
-                            <div key={index} className="flex flex-col items-center">
-                                <div
-                                    className="w-12 h-12 border-2 border-gray-300 rounded-full shadow-md cursor-pointer neumorphic-inner"
-                                    style={{ backgroundColor: color ? color.hex : "transparent" }}
-                                    onClick={() => handleColorClick(index)}
-                                ></div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                {errorMessage && <p className="mb-4 text-red-500">{errorMessage}</p>}
-                <button type="submit" className="px-4 py-2 font-bold neumorphic">
-                    Submit your guess
-                </button>
-            </form>
-            <hr className="border-gray-300" />
-            <div className="mt-8">
-                <h2 className="mb-4 text-lg font-bold">Previous Guesses:</h2>
+        <div className="p-8 mt-2 bg-gray-100 rounded-lg shadow-md neumorphic">
+
+            <div className="mt-2">
+                <h2 className="mb-4 text-lg font-bold">Previous hints:</h2>
                 <ul className="space-y-4">
                     {myGuessesAndFeedbacks && myGuessesAndFeedbacks.length > 0 && myGuessesAndFeedbacks.map((item, index) => (
                         <li key={index} className="flex items-center p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
@@ -92,6 +71,25 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
                         </li>
                     ))}
                 </ul>
+            </div>
+            <h1 className="mt-12">Make Your Guess</h1>
+            <p>Click on the colors to change them.</p>
+            <div className="flex items-center justify-between p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
+                <div className="flex space-x-4">
+                    {selectedColors.map((color, index) => (
+                        <div key={index} className="flex flex-col items-center">
+                            <div
+                                className="w-12 h-12 border-2 border-gray-300 rounded-full shadow-md cursor-pointer neumorphic-inner"
+                                style={{ backgroundColor: color ? color.hex : "transparent" }}
+                                onClick={() => handleColorClick(index)}
+                            ></div>
+                        </div>
+                    ))}
+                </div>
+                {errorMessage && <p className="mb-4 text-red-500">{errorMessage}</p>}
+                <button type="submit" className="!w-40 !rounded-3xl !shadow-lg">
+                    Submit guess
+                </button>
             </div>
         </div>
     );
