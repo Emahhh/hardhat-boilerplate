@@ -25,7 +25,8 @@ import { ShowResults } from "./ShowResults";
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
 
-// This is an error code that indicates that the user canceled a transaction
+// This is an error code that indicates that the user canceled a transaction 
+// TODO: handle this
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
 const COLORS_CHOICES = [
@@ -36,11 +37,6 @@ const COLORS_CHOICES = [
 ];
 
 const N_len_of_code = 4; // Number of colors in the code
-const M_num_possible_colors = COLORS_CHOICES.length; // Number of possible colors
-const NT_num_of_turns = 2; // Number of turns
-const NG_num_of_guesses = 2; // Number of guesses per turn
-const K_extra_points = 5; // Extra points for unbroken code
-const DISPUTE_SECONDS = 10; //TDisp
 
 // an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({

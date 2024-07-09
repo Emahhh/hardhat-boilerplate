@@ -22,8 +22,8 @@ contract Mastermind {
     // Game parameters
     int8 public constant N_len_of_code = 4; // Number of colors in the code
     int8 public constant M_num_possible_colors = 4; // Number of possible colors
-    int8 public constant NT_num_of_turns = 2; // Number of turns
-    int8 public constant NG_num_of_guesses = 2; // Number of guesses per turn
+    int8 public constant NT_num_of_turns = 3; // Number of turns
+    int8 public constant NG_num_of_guesses = 3; // Number of guesses per turn
     int8 public constant K_extra_points = 5; // Extra points for unbroken code
     int8 public constant DISPUTE_SECONDS = 10; //TDisp
 
@@ -283,8 +283,10 @@ contract Mastermind {
 
             uint stakeAmount = game.stake * 2;
             // Transfer the stake to the winner
+            // TODO: NO! instead of call.value(), use the functions send() or transfer() that limit the gas
+            // TODO: controllare che dia veramente i soldi
             (bool success, ) = winnerAdd.call{value: stakeAmount}("");
-            require(success, "Transfer failed");
+            require(success, "Winner prize transfer failed!!!");
 
             // Reset the stake for the game
             game.stake = 0;
