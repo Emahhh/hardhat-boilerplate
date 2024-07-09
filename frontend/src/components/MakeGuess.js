@@ -35,44 +35,47 @@ export const MakeGuess = ({ contract, gameId, onGuessMade, myGuessesAndFeedbacks
     };
 
     return (
-        <div className="p-8 mt-2 bg-gray-100 rounded-lg shadow-md neumorphic">
-
-            <div className="mt-2">
-                <h2 className="mb-4 text-lg font-bold">Previous hints:</h2>
-                <ul className="space-y-4">
-                    {myGuessesAndFeedbacks && myGuessesAndFeedbacks.length > 0 && myGuessesAndFeedbacks.map((item, index) => (
-                        <li key={index} className="flex items-center p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
-                            <div className="flex space-x-4">
-                                {item.guess.split("").map((letter, i) => {
-                                    const color = colors.find(c => c.letter === letter);
-                                    return (
-                                        <div
-                                            key={i}
-                                            className="w-8 h-8 border-2 border-gray-300 rounded-full neumorphic-inner"
-                                            style={{ backgroundColor: color ? color.hex : "transparent" }}
-                                        ></div>
-                                    );
-                                })}
-                            </div>
-                            <div className="flex items-center ml-8 space-x-2" data-tooltip={`Correct Color and Position: ${item.correctColorAndPosition}, Correct Color Wrong Position: ${item.correctColorWrongPosition}`}>
-                                {Array.from({ length: item.correctColorAndPosition }).map((_, i) => (
-                                    <div
-                                        key={`black-${i}`}
-                                        className="w-4 h-4 bg-gray-800 border-2 border-gray-400 rounded-full neumorphic-peg"
-                                    ></div>
-                                ))}
-                                {Array.from({ length: item.correctColorWrongPosition }).map((_, i) => (
-                                    <div
-                                        key={`white-${i}`}
-                                        className="w-4 h-4 bg-gray-100 border-2 border-gray-400 rounded-full neumorphic-peg"
-                                    ></div>
-                                ))}
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            <h1 className="mt-12">Make Your Guess</h1>
+        <div className="p-8 mt-2 mb-10 bg-gray-100 rounded-lg shadow-md neumorphic">
+            {myGuessesAndFeedbacks && myGuessesAndFeedbacks.length > 0 &&
+                <div className="mt-2 mb-10">
+                    <div>
+                        <h2 className="mb-4 text-lg font-bold">Previous hints:</h2>
+                        <ul className="space-y-4">
+                            {myGuessesAndFeedbacks.map((item, index) => (
+                                <li key={index} className="flex items-center p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
+                                    <div className="flex space-x-4">
+                                        {item.guess.split("").map((letter, i) => {
+                                            const color = colors.find(c => c.letter === letter);
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="w-8 h-8 border-2 border-gray-300 rounded-full neumorphic-inner"
+                                                    style={{ backgroundColor: color ? color.hex : "transparent" }}
+                                                ></div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="flex items-center ml-8 space-x-2" data-tooltip={`Correct Color and Position: ${item.correctColorAndPosition}, Correct Color Wrong Position: ${item.correctColorWrongPosition}`}>
+                                        {Array.from({ length: item.correctColorAndPosition }).map((_, i) => (
+                                            <div
+                                                key={`black-${i}`}
+                                                className="w-4 h-4 bg-gray-800 border-2 border-gray-400 rounded-full neumorphic-peg"
+                                            ></div>
+                                        ))}
+                                        {Array.from({ length: item.correctColorWrongPosition }).map((_, i) => (
+                                            <div
+                                                key={`white-${i}`}
+                                                className="w-4 h-4 bg-gray-100 border-2 border-gray-400 rounded-full neumorphic-peg"
+                                            ></div>
+                                        ))}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            }
+            <h1 className="mt-2">Make Your Guess</h1>
             <p>Click on the colors to change them.</p>
             <div className="flex items-center justify-between p-4 bg-gray-200 rounded-lg shadow-inner neumorphic">
                 <div className="flex space-x-4">

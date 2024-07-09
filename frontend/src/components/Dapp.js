@@ -30,10 +30,10 @@ const HARDHAT_NETWORK_ID = '31337';
 const ERROR_CODE_TX_REJECTED_BY_USER = 4001;
 
 const COLORS_CHOICES = [
-  { name: "Red", letter: "R", hex: "#FF0000" },
-  { name: "Green", letter: "G", hex: "#00FF00" },
-  { name: "Blue", letter: "B", hex: "#0000FF" },
-  { name: "Yellow", letter: "Y", hex: "#FFFF00" },
+  { name: "Red", letter: "R", hex: "#E74C3C" },   
+  { name: "Green", letter: "G", hex: "#2ECC71" }, 
+  { name: "Blue", letter: "B", hex: "#3498DB" }, 
+  { name: "Yellow", letter: "Y", hex: "#F1C40F" }
 ];
 
 const N_len_of_code = 4; // Number of colors in the code
@@ -327,7 +327,7 @@ export class Dapp extends React.Component {
       return <ShowResults 
       contract={this._contract} 
       gameId={this.state.currentGameID} 
-      currUser={this.state.currUser}/>
+      currUser={this.state.userAddress}/>
     }
 
 

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 export function CreateNewGame({ contract, ethers, updateGameState, GameStates, updateGameID }) {
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
+    const amountInEth = amount ? ethers.utils.formatEther(amount) : 0;
 
     async function createGame() {
         try {
@@ -43,6 +44,7 @@ export function CreateNewGame({ contract, ethers, updateGameState, GameStates, u
                 onChange={handleChange}
                 placeholder="Enter amount in Wei"
             />
+            <p>= {amountInEth} ETH</p>
             {error && <p className="error">{error}</p>}
             <button
                 type="button"
