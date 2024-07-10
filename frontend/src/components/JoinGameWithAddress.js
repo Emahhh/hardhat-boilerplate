@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getRpcErrorMessage } from "../utils";
 
 export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
     const [gameID, setGameID] = useState("");
@@ -8,25 +9,24 @@ export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
             alert("Please enter a game ID.");
             return;
         }
-
-        let gameStake = 0;
-        gameStake = await contract.getGameStake(gameID); // TODO: non permettere steak 0 nel client
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        if (gameStake == 0) {
-            alert("Please try again in a few seconds! The smart contract is not ready yet.");
-            return;
-        }
-
-        alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
-        // TODO: make em choose
-        
-        // Join the game
         try {
+            let gameStake = 0;
+            gameStake = await contract.getGameStake(gameID);
+            if (gameStake == 0) {
+                alert("Please try again in a few seconds! The smart contract is not ready yet.");
+                return;
+            }
+            alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
+            // TODO: make em choose
+            
+            // Join the game
+
             await contract.joinGame(gameID, { value: gameStake });
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
         } catch (error) {
-            alert("Error joining game:", error);
+            const errorMessage = getRpcErrorMessage(error);
+            alert("Error joining game:", errorMessage);
+            console.error("Error joining game:", error);
         }
     }
 

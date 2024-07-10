@@ -167,6 +167,10 @@ export class Dapp extends React.Component {
 
             {/* TODO: implement*/}
             <FindRandomGame
+              contract={this._contract}
+              updateGameState={(gameState) => this.setState({ gameState })}
+              GameStates={GameStates}
+              ethers={ethers}
             />
 
             <hr />
