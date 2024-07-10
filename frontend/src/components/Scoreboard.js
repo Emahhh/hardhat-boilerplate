@@ -2,43 +2,40 @@ import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 
 export const Scoreboard = ({ contract, gameId, updateGameState, gameState }) => {
-    const [totalTurns, setTotalTurns] = useState(undefined);
-    const [totalGuesses, setTotalGuesses] = useState(undefined);
-    const [guessesLeft, setGuessesLeft] = useState(undefined);
-    const [turnsLeft, setTurnsLeft] = useState(undefined);
-    const [myScore, setMyScore] = useState(undefined);
-    const [opponentScore, setOpponentScore] = useState(undefined);
+    const totalTurns = gameState.totalTurns;
+    const totalGuesses = gameState.totalGuesses;
+
+    const [myScore, setMyScore] = useState(0);
+    const [opponentScore, setOpponentScore] = useState(0);
+
+    const [guessesLeft, setGuessesLeft] = useState(0);
+    const [turnsLeft, setTurnsLeft] = useState(0);
+
 
     // Function to fetch all necessary data from the contract
     const fetchData = async () => {
         try {
-            // Fetch total turns and total guesses from contract
-            const [guessesLeftFromContract, turnsLeftFromContract] = await contract.getGuessesAndTurnsLeft(gameId);
-            const totalTurnsFromContract = await contract.getGameStake(gameId);
-            const totalGuessesFromContract = await contract.getGameStake(gameId);
-            const myScoreFromContract = await contract.getCreatorScore(gameId);
-            const opponentScoreFromContract = await contract.getOpponentScore(gameId);
+            // Fetch data from contract
+            const [guessesLeft, turnsLeft] = await contract.getGuessesAndTurnsLeft(gameId);
+            const myScore = await contract.getCreatorScore(gameId);
+            const opponentScore = await contract.getOpponentScore(gameId);
 
-            // Update state with fetched data
-            setTotalTurns(totalTurnsFromContract);
-            setTotalGuesses(totalGuessesFromContract);
-            setGuessesLeft(guessesLeftFromContract);
-            setTurnsLeft(turnsLeftFromContract);
-            setMyScore(myScoreFromContract);
-            setOpponentScore(opponentScoreFromContract);
+            // Convert BigNumber to numbers
+            const formattedData = {
+                guessesLeft: Number(guessesLeft),
+                turnsLeft: Number(turnsLeft),
+                myScore: myScore.toNumber(),
+                opponentScore: opponentScore.toNumber(),
+            };
 
-            // Update gameState in parent component if updateGameState is provided
-            if (updateGameState) {
-                updateGameState({
-                    ...gameState,
-                    totalTurns: totalTurnsFromContract,
-                    totalGuesses: totalGuessesFromContract,
-                    guessesLeft: guessesLeftFromContract,
-                    turnsLeft: turnsLeftFromContract,
-                    myScore: myScoreFromContract,
-                    opponentScore: opponentScoreFromContract
-                });
-            }
+            updateGameState(formattedData);
+
+            setGuessesLeft(formattedData.guessesLeft);
+            setTurnsLeft(formattedData.turnsLeft);
+            setMyScore(formattedData.myScore);
+            setOpponentScore(formattedData.opponentScore);//
+
+            console.log("Fetched data from contract:", formattedData);
         } catch (error) {
             console.error("Error fetching data from contract:", error);
             // Handle error appropriately
@@ -51,19 +48,27 @@ export const Scoreboard = ({ contract, gameId, updateGameState, gameState }) => 
     }, [gameState]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
-        <div className="fixed bottom-0 left-0 w-full p-4 text-white bg-gray-800">
+        <div className="fixed bottom-0 left-0 w-full p-4 text-white bg-gray-300 shadow-lg">
             <div className="flex items-center justify-between">
                 <div>
-                    {totalTurns !== undefined && (
-                        <p className="text-sm">Turn {turnsLeft} of {totalTurns}</p>
+                    {totalTurns !== undefined && turnsLeft !== undefined && (
+                        <p className="text-md !text-white">
+                            Turn {totalTurns - turnsLeft + 1} of {totalTurns}
+                        </p>
                     )}
+                </div>
+                <div>
                     {guessesLeft !== undefined && (
-                        <p className="text-sm">{guessesLeft} guesses left</p>
+                        <p className="text-sm">
+                            {guessesLeft} guesses left
+                        </p>
                     )}
                 </div>
                 <div>
                     {myScore !== undefined && opponentScore !== undefined && (
-                        <p className="text-sm">Your score: {myScore}, Opponent's score: {opponentScore}</p>
+                        <p className="text-sm">
+                            Your score: {myScore}, Opponent's score: {opponentScore}
+                        </p>
                     )}
                 </div>
             </div>

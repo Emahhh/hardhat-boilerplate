@@ -243,12 +243,12 @@ export class Dapp extends React.Component {
             colors={COLORS_CHOICES}
             codeLength={this.state.codeLen}
           />
-          <Scoreboard
+          {/* <Scoreboard
             contract={this._contract}
             gameId={this.state.currentGameID}
             updateGameState={(gameState) => this.setState({ gameState })}
             gameState={this.state.gameState}
-            ></Scoreboard>
+            ></Scoreboard> */}
         </div>
       );
     }

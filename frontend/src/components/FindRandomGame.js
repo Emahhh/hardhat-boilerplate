@@ -25,16 +25,14 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
 
         } catch (error) {
+            console.error("Error finding game:", error);
+
             if(error?.message && error.message.includes("You can't play against yourself!")) {
                 alert("Try again! We found your own game, and you can't play against yourself!");
-                return;
             }
 
-            console.error("Error finding game:", error);
-            setErrorMessage("Error finding game: " + error);
-
             if(error?.message && error?.message.includes("No games with only one player available")) {
-                setErrorMessage("No games found. Please try again in a few seconds!");
+                alert("No games found. Please try again in a few seconds!");
             }
         }
     }
