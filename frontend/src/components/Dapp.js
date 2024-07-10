@@ -21,6 +21,7 @@ import { CreateNewGame } from "./CreateNewGame";
 import { CommitSecretCode } from "./CommitSecretCode";
 import { MakeGuess } from "./MakeGuess";
 import { ShowResults } from "./ShowResults";
+import { Scoreboard } from "./Scoreboard";
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -35,8 +36,6 @@ const COLORS_CHOICES = [
   { name: "Blue", letter: "B", hex: "#3498DB" }, 
   { name: "Yellow", letter: "Y", hex: "#F1C40F" }
 ];
-
-const N_len_of_code = 4; // Number of colors in the code
 
 // an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({
@@ -83,9 +82,20 @@ export class Dapp extends React.Component {
       colorsVerified: false,
       currentGameID: undefined,
       secretCode: undefined,
+
+      codeLen: undefined,
+
+      totalTurns: undefined,
+      totalGuesses: undefined,
       guessesLeft: undefined,
       turnsLeft: undefined,
+
+      myScore: undefined,
+      opponentScore: undefined,
+
+
       myGuessesAndFeedbacks: [],
+
     };
 
     this.state = this.initialState;
@@ -218,17 +228,29 @@ export class Dapp extends React.Component {
       return <Loading message={"Waiting for the game to start..."} />
     }
 
+
     // THE GAME HAS STARTED, waiting for your commit
     if (this.state.gameState === GameStates.AWAITING_YOUR_COMMIT) {
-      return <CommitSecretCode
-        contract={this._contract}
-        gameId={this.state.currentGameID}
-        onCommit={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
-        updateSecretCode={(code) => this.setState({ secretCode: code })}
-        myGuessesAndFeedbacks={this.state.myGuessesAndFeedbacks}
-        colors={COLORS_CHOICES}
-        codeLength={N_len_of_code}
-      />
+
+      return(
+        <div>
+          <CommitSecretCode
+            contract={this._contract}
+            gameId={this.state.currentGameID}
+            onCommit={() => this.setState({ gameState: GameStates.AWAITING_OPPONENTS_GUESS })}
+            updateSecretCode={(code) => this.setState({ secretCode: code })}
+            myGuessesAndFeedbacks={this.state.myGuessesAndFeedbacks}
+            colors={COLORS_CHOICES}
+            codeLength={this.state.codeLen}
+          />
+          <Scoreboard
+            contract={this._contract}
+            gameId={this.state.currentGameID}
+            updateGameState={(gameState) => this.setState({ gameState })}
+            gameState={this.state.gameState}
+            ></Scoreboard>
+        </div>
+      );
     }
 
     // THE GAME HAS STARTED, waiting for opponent's commit
@@ -249,7 +271,7 @@ export class Dapp extends React.Component {
             myGuessesAndFeedbacks={this.state.myGuessesAndFeedbacks}
             setMyGuessesAndFeedbacks={(guesses) => this.setState({ myGuessesAndFeedbacks: guesses })}
             colors={COLORS_CHOICES}
-            codeLength={N_len_of_code}
+            codeLength={this.state.codeLen}
           />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
@@ -351,7 +373,7 @@ export class Dapp extends React.Component {
 
 
   // This method initializes the dapp
-  _initialize(userAddress) {
+  async _initialize(userAddress) {
 
     // We first store the user's address in the component's state
     this.setState({
@@ -371,11 +393,17 @@ export class Dapp extends React.Component {
 
     // FETCHING DATA
     // fetch some data from the contract
-    const cName = this._contract.name();
-    if (!cName) {
-      console.log("Contract name not found");
+    const cName = await this._contract.name();
+    const totalTurns = await this._contract.NT_num_of_turns();
+    const totalGuesses = await this._contract.NG_num_of_guesses();
+    const codeLen = await this._contract.N_len_of_code();
+
+    if (cName === undefined || totalTurns === undefined || totalGuesses === undefined || codeLen === undefined) {
+      alert("Error fetching data from the contract. Please try again later.");
+      return;
     }
-    this.setState({ contractName: cName });
+
+    this.setState({ contractName: cName, totalTurns: totalTurns, totalGuesses: totalGuesses, codeLen: codeLen });
 
     this._verifyColors();
     this.initListeners();
@@ -510,7 +538,7 @@ export class Dapp extends React.Component {
         await this._contract.giveFeedback(eventGameID, correctColorAndPosition, correctColorWrongPosition);
         console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
 
-        if (correctColorAndPosition == N_len_of_code) {
+        if (correctColorAndPosition == this.state.codeLen) {
           alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
           await this._contract.revealCode(eventGameID, this.state.secretCode);
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });

@@ -8,6 +8,11 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
         try {
             const gameID = await contract.getRandomGameWithOnePlayer();
 
+            if (!gameID) {
+                alert("No games found. Please try again in a few seconds!");
+                return;
+            }
+
             let gameStake = 0;
             gameStake = await contract.getGameStake(gameID);
             if (gameStake == 0) {
@@ -20,13 +25,17 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
 
         } catch (error) {
-            if(error.message && error.message.includes("You can't play against yourself!")) {
+            if(error?.message && error.message.includes("You can't play against yourself!")) {
                 alert("Try again! We found your own game, and you can't play against yourself!");
                 return;
             }
 
-            console.error("Error finding game:", error.message);
-            setErrorMessage("Error finding game: " + getRpcErrorMessage(error));
+            console.error("Error finding game:", error);
+            setErrorMessage("Error finding game: " + error);
+
+            if(error?.message && error?.message.includes("No games with only one player available")) {
+                setErrorMessage("No games found. Please try again in a few seconds!");
+            }
         }
     }
 

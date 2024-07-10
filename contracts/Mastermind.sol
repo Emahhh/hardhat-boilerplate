@@ -2,7 +2,6 @@ pragma solidity ^0.8.9;
 
 import "hardhat/console.sol";
 
-
 contract Mastermind {
     string public constant name = "Mastermind";
     string public constant symbol = "ETH";
@@ -45,11 +44,15 @@ contract Mastermind {
         GameState state;
         TurnPhase phase;
         address codeMakerAddress;
-        address codeBreakerAddress;
         uint8 guessesCounter;
         uint8 turnsCounter;
         string[NG_num_of_guesses] currentTurnGuesses;
         Feedback[NG_num_of_guesses] currentTurnFeedbacks;
+    }
+
+    function codeBreakerAddress(uint gameId) public view returns (address) {
+        Game storage game = games[gameId];
+        return game.codeMakerAddress == game.creator ? game.opponent : game.creator;
     }
 
     struct Feedback {
@@ -107,15 +110,39 @@ contract Mastermind {
 
     // END OF MODIFIERS -------
 
+
+
+    // GETTERS ----------------
+    function getCreatorScore(uint gameId) public view returns (uint256) {
+        Game storage game = games[gameId];
+        return game.creatorScore;
+    }
+
+    function getOpponentScore(uint gameId) public view returns (uint256) {
+        Game storage game = games[gameId];
+        return game.opponentScore;
+    }
+
+    function getGameStake(uint gameId) external view returns (uint stake) {
+        Game storage game = games[gameId];
+        stake = game.stake;
+        return stake;
+    }
+
+    function getGuessesAndTurnsLeft(uint gameId) external view returns (uint8, uint8) {
+        Game storage game = games[gameId];
+        return (NG_num_of_guesses - game.guessesCounter, NT_num_of_turns - game.turnsCounter);
+    }
+    // END OF GETTERS ----------
+
+
+
+
     function winner(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
         require(game.state == GameState.Ended, "Game has not ended yet");
-        
-        // if tie, return a pseudo-random winner
-        if (game.creatorScore == game.opponentScore) {
-            return uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % 2 == 0 ? game.creator : game.opponent;
-        }
 
+        // TODO: what if tie?
         if (game.opponentScore > game.creatorScore) {
             return game.creator;
         } else {
@@ -152,11 +179,7 @@ contract Mastermind {
         emit GameCreated(gameCount, msg.sender);
     }
 
-    function getGameStake(uint gameId) external view returns (uint stake) {
-        Game storage game = games[gameId];
-        stake = game.stake;
-        return stake;
-    }
+
 
     function getRandomGameWithOnePlayer() external view returns (uint) {
         require(gamesWithOnePlayer.length > 0, "No games with only one player available");
@@ -196,10 +219,8 @@ contract Mastermind {
         // Randomly select roles
         if (block.timestamp % 2 == 0) {
             game.codeMakerAddress = game.creator;
-            game.codeBreakerAddress = game.opponent;
         } else {
             game.codeMakerAddress = game.opponent;
-            game.codeBreakerAddress = game.creator;
         }
         game.state = GameState.InProgress;
         emit GameStarted(gameId, game.codeMakerAddress);
@@ -220,7 +241,7 @@ contract Mastermind {
     function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
         Game storage game = games[gameId];
         // TODO: what if the codemaker tries to call thid function? build a test case on it
-        require(game.codeBreakerAddress == msg.sender, "Only the CodeBreaker can make guesses");
+        require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can make guesses");
         uint8 guessesLeft = NG_num_of_guesses - game.guessesCounter;
         require(guessesLeft > 0, "No tries left");
 
@@ -284,7 +305,7 @@ contract Mastermind {
     // TODO: implement
     function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
-        require(game.codeBreakerAddress == msg.sender, "Only the CodeBreaker can dispute");
+        require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can dispute");
 
         // TODO: end the whole game
     }
@@ -293,7 +314,7 @@ contract Mastermind {
     // TODO: QUI VA LA LOGICA PER LA ASSEGNAZIONE DEI PUNTI E DEL NUOVO TURNO
     function dontDispute(uint gameId) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
-        require(game.codeBreakerAddress == msg.sender, "Only the CodeBreaker can dispute");
+        require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can dispute");
 
         // assign points
         {
@@ -339,9 +360,7 @@ contract Mastermind {
             game.guessesCounter = 0;
 
             // Swap roles
-            address temp = game.codeMakerAddress;
-            game.codeMakerAddress = game.codeBreakerAddress;
-            game.codeBreakerAddress = temp;
+            game.codeMakerAddress = codeBreakerAddress(gameId);
         }
 
         // TODO: 
@@ -353,11 +372,6 @@ contract Mastermind {
 
     function accuseAFK(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.InProgress) {
         // Implement AFK accusation logic
-    }
-
-    function getGuessesAndTurnsLeft(uint gameId) external view returns (uint8, uint8) {
-        Game storage game = games[gameId];
-        return (NG_num_of_guesses - game.guessesCounter, NT_num_of_turns - game.turnsCounter);
     }
 
 }
