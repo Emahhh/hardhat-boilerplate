@@ -265,6 +265,7 @@ contract Mastermind {
 
         // TODO: Validate feedback
         uint256 guessesCounterUint256 = uint256(game.guessesCounter);
+        string memory guess = game.currentTurnGuesses[guessesCounterUint256-1];
         game.currentTurnFeedbacks[guessesCounterUint256-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
 
         game.phase = TurnPhase.Guess;
@@ -301,13 +302,81 @@ contract Mastermind {
 
     }
 
-    // fa la disputa ad un certo feedback, controlla e da i soldi a chi ha ragione
-    // TODO: implement
+    // Request a dispute on a certain feedback. Checks which one of the player is trying to cheat, ends the game and gives the stake to the player that was right.
+    // TODO: check and test
     function dispute(uint gameId, uint feedbackIndexToDispute) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
         require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can dispute");
 
-        // TODO: end the whole game
+        bool feedbacksAreCorrect = false;
+        bool correctCode = false;
+
+        {
+            // calculating the values of feedbacksAreCorrect and correctCode
+            string memory secretCode = game.secretCode;
+            string memory guess = game.currentTurnGuesses[feedbackIndexToDispute];
+            uint8 ccpFeedback = game.currentTurnFeedbacks[feedbackIndexToDispute].correctColorAndPositionFeedback;
+            uint8 ccwpFeedback = game.currentTurnFeedbacks[feedbackIndexToDispute].correctColorWrongPositionFeedback;
+
+            correctCode = keccak256(bytes(guess)) == keccak256(bytes(secretCode));
+            
+
+            uint8 ccp = 0;
+            uint8 ccwp = 0;
+
+            // Convert strings to bytes for easier comparison
+            bytes memory secretCodeBytes = bytes(secretCode);
+            bytes memory guessBytes = bytes(guess);
+
+            // Arrays to keep track of matched characters
+            bool[] memory secretMatched = new bool[](secretCodeBytes.length);
+            bool[] memory guessMatched = new bool[](guessBytes.length);
+
+            // First pass: Find correct color and position (ccp)
+            for (uint8 i = 0; i < secretCodeBytes.length; i++) {
+                if (secretCodeBytes[i] == guessBytes[i]) {
+                    ccp++;
+                    secretMatched[i] = true;
+                    guessMatched[i] = true;
+                }
+            }
+
+            // Second pass: Find correct color but wrong position (ccwp)
+            for (uint8 i = 0; i < secretCodeBytes.length; i++) {
+                if (!secretMatched[i]) {
+                    for (uint8 j = 0; j < guessBytes.length; j++) {
+                        if (!guessMatched[j] && secretCodeBytes[i] == guessBytes[j]) {
+                            ccwp++;
+                            secretMatched[i] = true;
+                            guessMatched[j] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if(ccp == ccpFeedback && ccwp == ccwpFeedback) {
+                feedbacksAreCorrect = true;
+            }
+        }
+        
+        if(correctCode || !feedbacksAreCorrect) {
+            console.log("!!! The result of the dispute is: the CodeBreaker was right! The Codemaker cheated. Sending stake to the CodeBreaker.");
+
+            game.state = GameState.Ended;
+            address payable winnerAdd = payable(codeBreakerAddress(gameId));
+            uint stakeAmount = game.stake * 2;
+            bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
+            require(sent, "Failed to send Ether");
+
+        } else {
+            console.log("!!! The result of the dispute is: the CodeBreaker was wrong and accused of cheating! Sending stake to the Codemaker.");
+            game.state = GameState.Ended;
+            address payable winnerAdd = payable(game.codeMakerAddress);
+            uint stakeAmount = game.stake * 2;
+            bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
+            require(sent, "Failed to send Ether");
+        }
     }
 
 
