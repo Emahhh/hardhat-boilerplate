@@ -22,7 +22,7 @@ contract Mastermind {
     uint8 public constant NT_num_of_turns = 2; // Number of turns
     uint8 public constant NG_num_of_guesses = 3; // Number of guesses per turn
     uint8 public constant K_extra_points = 5; // Extra points for unbroken code
-    uint8 public constant DISPUTE_SECONDS = 10; //TDisp
+    uint8 public constant TIME_DISPUTE_BLOCKS = 10; //TDisp
 
     enum GameState { Created, Joined, InProgress, Ended }
     enum TurnPhase { Commit, Guess, Feedback, Reveal, // wait fot the CodeMaker to reveal the code
@@ -48,6 +48,10 @@ contract Mastermind {
         uint8 turnsCounter;
         string[NG_num_of_guesses] currentTurnGuesses;
         Feedback[NG_num_of_guesses] currentTurnFeedbacks;
+
+        uint accusationTimestamp;
+        uint lastActionTimestamp;
+        address winner;
     }
 
     function codeBreakerAddress(uint gameId) public view returns (address) {
@@ -78,6 +82,7 @@ contract Mastermind {
     event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
     event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint8 guessesLeft, uint8 correctColorAndPosition, uint8 correctColorWrongPosition);
     event DisputeDenied(uint gameId, address codeMakerAddress, uint8 turnsLeft);
+    event AFKAccusation(address accusedUser, uint deadlineTimestamp);
 
 
 
@@ -138,9 +143,11 @@ contract Mastermind {
 
 
 
-    function winner(uint gameId) public view returns (address) {
+    // Function to compute the winner of the game
+    function computeAndSetWinner(uint gameId) public returns (address) {
         Game storage game = games[gameId];
-        require(game.state == GameState.Ended, "Game has not ended yet");
+        require(game.winner == address(0), "Winner already set!");
+        require(game.state == GameState.Ended, "Game is not ended yet!");
 
         // TODO: what if tie?
         if (game.opponentScore > game.creatorScore) {
@@ -148,6 +155,18 @@ contract Mastermind {
         } else {
             return game.opponent;
         }
+
+        game.state = GameState.Ended;
+    }
+
+    // Function to view the winner of the game
+    // TODO. cambia client per usare questo
+    function getWinner(uint gameId) public view returns (address) {
+        Game storage game = games[gameId];
+        require(game.state == GameState.Ended, "The game has not finished yet!");
+        require(game.winner != address(0), "No winner set!");
+
+        return game.winner;
     }
 
 
@@ -408,7 +427,7 @@ contract Mastermind {
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
-            address payable winnerAdd = payable(winner(gameId));
+            address payable winnerAdd = payable(getWinner(gameId));
             console.log ("!!! The game ended! The winner is: ", winnerAdd);
 
             // Transfer the stake to the winner TODO: fare una funzione "redeem"?
@@ -439,8 +458,74 @@ contract Mastermind {
     }
 
 
-    function accuseAFK(uint gameId) external onlyPlayers(gameId) inState(gameId, GameState.InProgress) {
-        // Implement AFK accusation logic
+
+    // returns the user that is supposed to make their move right now
+    function getCurrentActiveUser(uint gameId) public view returns (address) {
+        Game storage game = games[gameId];
+        require(game.state == GameState.InProgress, "Game is not in progress");
+
+        // for each turnphase, I return the active user
+        //enum TurnPhase { Commit, Guess, Feedback, Reveal, WaitingForDispute } 
+        if(game.phase == TurnPhase.Commit) {
+            return game.codeMakerAddress;
+        } else if(game.phase == TurnPhase.Guess) {
+            return codeBreakerAddress(gameId);
+        } else if(game.phase == TurnPhase.Feedback) {
+            return game.codeMakerAddress;
+        } else if(game.phase == TurnPhase.Reveal) {
+            return game.codeMakerAddress;
+        } else if(game.phase == TurnPhase.WaitingForDispute) {
+            return codeBreakerAddress(gameId);
+        } else {
+            require(false, "Error: Unknown TurnPhase");
+        }
+    }
+
+    // Function to start accusing AFK
+    function startAccuseAFK(uint gameId, address accusedUser) public {
+        Game storage game = games[gameId];
+
+        address currentActiveUser = getCurrentActiveUser(gameId);
+        require(accusedUser == currentActiveUser, "You can only accuse of AFK if it is their turn!");
+
+        require(game.creator == accusedUser || game.opponent == accusedUser, "You accused an user that is not part of the game!");
+        require(accusedUser != msg.sender, "You cannot accuse yourself!");
+        require(game.phase == TurnPhase.Guess, "You can only accuse AFK during the Guess phase!");
+        require(game.accusationTimestamp == 0, "You already accused of AFK!");
+        require(game.lastActionTimestamp == 0, "The opponent has already made their move!");
+
+        uint nowTimestamp = block.timestamp;
+        game.accusationTimestamp = nowTimestamp;
+
+        uint deadlineTimestamp = nowTimestamp + TIME_DISPUTE_BLOCKS;
+        emit AFKAccusation(accusedUser, deadlineTimestamp);
+    }
+
+    // Function to reset AFK accusation status
+    // Should be called when the TurnPhase changes // TODO: check that i did this everyehwere
+    function resetAFKAccusation(uint gameId) internal {
+        Game storage game = games[gameId];
+        game.accusationTimestamp = 0;
+        game.lastActionTimestamp = 0;
+    }
+
+    // Function to end AFK accusation and determine penalty
+    function endAccuseAFK(uint gameId) public {
+        Game storage game = games[gameId];
+        require(msg.sender != game.codeMakerAddress, "You cannot accuse of AFK while it is your turn to make a move!");
+        require(game.phase == TurnPhase.Guess, "You can only end AFK accusation during the Guess phase!");
+        require(game.accusationTimestamp != 0, "No AFK accusation started! You must call startAccuseAFK first.");
+        
+        uint nowTimestamp = block.timestamp;
+
+        require(nowTimestamp >= game.accusationTimestamp + TIME_DISPUTE_BLOCKS, "Not enough time passed since accusation! The opponent still has time to make their move.");
+        require(nowTimestamp <= game.lastActionTimestamp + TIME_DISPUTE_BLOCKS, "Opponent made their move in time! AFK penalty cannot be confirmed.");
+
+        // If all conditions met, declare the accuser as the winner
+        game.winner = msg.sender;
+        game.state = GameState.Ended;
+
+        emit GameEnded(gameId, msg.sender);
     }
 
 }
