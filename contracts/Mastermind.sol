@@ -83,7 +83,7 @@ contract Mastermind {
     event CodeGuessedSuccessfully(uint gameId, address codeMakerAddress);
     event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint8 guessesLeft, uint8 correctColorAndPosition, uint8 correctColorWrongPosition);
     event DisputeDenied(uint gameId, address codeMakerAddress, uint8 turnsLeft);
-    event AFKAccusation(address accusedUser, uint deadlineTimestamp);
+    event AFKAccusation(address accusedUser, uint blocksLeft);
     event DisputeVerdict(uint gameId, address winner);
 
 
@@ -124,6 +124,11 @@ contract Mastermind {
     function getCreator(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
         return game.creator;
+    }
+
+    function getOpponent(uint gameId) public view returns (address) {
+        Game storage game = games[gameId];
+        return game.opponent;
     }
 
     function getCreatorScore(uint gameId) public view returns (uint256) {
@@ -196,12 +201,17 @@ contract Mastermind {
         myGame.codeMakerAddress = msg.sender;
         myGame.guessesCounter = 0;
         myGame.turnsCounter = 0;
+        myGame.accusationTimestamp = 0;
+        myGame.lastActionTimestamp = 0;
+
 
         // Add game ID to array and mapping
         gamesWithOnePlayer.push(gameCount);
         gameIdToIndex[gameCount] = gamesWithOnePlayer.length - 1;
 
         console.log("!!! Game created with ID: ", gameCount);
+        resetAFKAccusation(gameCount);
+
 
         emit GameCreated(gameCount, msg.sender);
     }
@@ -236,6 +246,7 @@ contract Mastermind {
         // Remove the last element
         gamesWithOnePlayer.pop();
         delete gameIdToIndex[gameId];
+        resetAFKAccusation(gameId);
 
         emit GameJoined(gameId, msg.sender);
     }
@@ -251,6 +262,7 @@ contract Mastermind {
         }
         game.state = GameState.InProgress;
         emit GameStarted(gameId, game.codeMakerAddress);
+        resetAFKAccusation(gameId);
         console.log("!!! Fired GameStarted event. Game ID: ", gameId, ", codeMaker: ", game.codeMakerAddress);
     }
 
@@ -260,6 +272,8 @@ contract Mastermind {
 
         game.secretHash = secretHash;
         game.phase = TurnPhase.Guess;
+
+        resetAFKAccusation(gameId);
 
         emit CodeCommitted(gameId, secretHash); // TODO: dire chi è il codemaker
         console.log("!!! Fired CodeCommitted event. Game ID: ", gameId);
@@ -279,6 +293,8 @@ contract Mastermind {
         game.guessesCounter++;
         guessesLeft = NG_num_of_guesses - game.guessesCounter;
         game.phase = TurnPhase.Feedback;
+
+        resetAFKAccusation(gameId);
 
         emit CodeGuessed(gameId, guess, guessesLeft); // TODO: dire di chi è il turno di dare il feedback
         console.log("!!! The codeBreaker has given their guess. emitting the event CodeGuessed");
@@ -310,6 +326,7 @@ contract Mastermind {
             }
             emit CodeGuessedUnsccessfully(gameId, game.codeMakerAddress, guessesLeft, correctColorAndPosition, correctColorWrongPosition);
         }
+        resetAFKAccusation(gameId);
 
     }
 
@@ -321,6 +338,8 @@ contract Mastermind {
 
         game.secretCode = secretCode;
         game.phase = TurnPhase.WaitingForDispute;
+
+        resetAFKAccusation(gameId);
 
         emit CodeRevealed(gameId, secretCode);
         console.log("!!! The code has been revealed. Emitting CodeRevealed event. The code was: ", secretCode);
@@ -411,6 +430,7 @@ contract Mastermind {
             require(sent, "Failed to send Ether");
             emit DisputeVerdict(gameId, game.codeMakerAddress);
         }
+        resetAFKAccusation(gameId);
     }
 
 
@@ -470,6 +490,8 @@ contract Mastermind {
 
         emit DisputeDenied(gameId, game.codeMakerAddress, turnsLeft);
         console.log("!!! The CodeBreaker doesnt want to dispte. Moving to the next turn. Fired DisputeDenied event. Game ID: ", gameId);
+        resetAFKAccusation(gameId);
+
     }
 
 
@@ -477,7 +499,7 @@ contract Mastermind {
     // returns the user that is supposed to make their move right now
     function getCurrentActiveUser(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
-        require(game.state == GameState.InProgress, "Game is not in progress");
+        require(game.state == GameState.InProgress || game.state == GameState.Joined, "This game isnt in progress or joined");
 
         // for each turnphase, I return the active user
         //enum TurnPhase { Commit, Guess, Feedback, Reveal, WaitingForDispute } 
@@ -507,15 +529,17 @@ contract Mastermind {
 
         require(game.creator == accusedUser || game.opponent == accusedUser, "You accused an user that is not part of the game!");
         require(accusedUser != msg.sender, "You cannot accuse yourself!");
-        require(game.phase == TurnPhase.Guess, "You can only accuse AFK during the Guess phase!");
+        require(game.state == GameState.InProgress || game.state == GameState.Joined, "You can only accuse AFK if the game is in progress or joined (waiting to start)!");
         require(game.accusationTimestamp == 0, "You already accused of AFK!");
-        require(game.lastActionTimestamp == 0, "The opponent has already made their move!");
+        require(game.lastActionTimestamp == 0, "The opponent has already made their move!"); // TODO: pulire lastActionTimestamp se non serve più
+
+        resetAFKAccusation(gameId);
 
         uint nowTimestamp = block.timestamp;
         game.accusationTimestamp = nowTimestamp;
 
         uint deadlineTimestamp = nowTimestamp + TIME_DISPUTE_BLOCKS;
-        emit AFKAccusation(accusedUser, deadlineTimestamp);
+        emit AFKAccusation(accusedUser, TIME_DISPUTE_BLOCKS);
     }
 
     // Function to reset AFK accusation status
@@ -523,26 +547,29 @@ contract Mastermind {
     function resetAFKAccusation(uint gameId) internal {
         Game storage game = games[gameId];
         game.accusationTimestamp = 0;
-        game.lastActionTimestamp = 0;
+        // game.lastActionTimestamp = 0;
     }
 
     // Function to end AFK accusation and determine penalty
-    function endAccuseAFK(uint gameId) public {
+    // must be called after startAccuseAFK
+    function endAccuseAFK(uint gameId) public returns (bool) {
         Game storage game = games[gameId];
-        require(msg.sender != game.codeMakerAddress, "You cannot accuse of AFK while it is your turn to make a move!");
-        require(game.phase == TurnPhase.Guess, "You can only end AFK accusation during the Guess phase!");
-        require(game.accusationTimestamp != 0, "No AFK accusation started! You must call startAccuseAFK first.");
+        require(msg.sender != getCurrentActiveUser(gameId), "You cannot accuse of AFK while it is your turn to make a move!");
+        require(game.state == GameState.InProgress || game.state == GameState.Joined, "You can only end AFK accusation during InProgress or Joined!");
+        require(game.accusationTimestamp != 0, "No AFK accusation running right now. Maybe the other player made a move in time.");
         
         uint nowTimestamp = block.timestamp;
 
         require(nowTimestamp >= game.accusationTimestamp + TIME_DISPUTE_BLOCKS, "Not enough time passed since accusation! The opponent still has time to make their move.");
-        require(nowTimestamp <= game.lastActionTimestamp + TIME_DISPUTE_BLOCKS, "Opponent made their move in time! AFK penalty cannot be confirmed.");
+        // require(game.lastActionTimestamp != 0 && nowTimestamp <= game.lastActionTimestamp + TIME_DISPUTE_BLOCKS, "Opponent made their move in time! AFK penalty cannot be confirmed.");
 
-        // If all conditions met, declare the accuser as the winner
+        // If all conditions met, declare the accuser as the winner TODO: manda soldi ecc 
         game.winner = msg.sender;
         game.state = GameState.Ended;
 
+        resetAFKAccusation(gameId);
         emit GameEnded(gameId, msg.sender);
+        return true;
     }
 
 }

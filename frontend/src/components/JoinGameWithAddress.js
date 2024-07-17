@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { getRpcErrorMessage } from "../utils";
 
-export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
+export function JoinGameWithAddress({ contract, updateGameState, GameStates, updateOpponentAddress }) {
     const [gameID, setGameID] = useState("");
 
     async function joinGame() {
@@ -23,6 +23,9 @@ export function JoinGameWithAddress({ contract, updateGameState, GameStates }) {
 
             await contract.joinGame(gameID, { value: gameStake });
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
+
+            const opponentAddress = await contract.getCreator(gameID);
+            updateOpponentAddress(opponentAddress);
         } catch (error) {
             const errorMessage = getRpcErrorMessage(error);
             alert("Error joining game:", errorMessage);

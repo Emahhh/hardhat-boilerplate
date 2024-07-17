@@ -27,8 +27,22 @@ import { CommitSecretCode } from "./CommitSecretCode";
 import { MakeGuess } from "./MakeGuess";
 import { ShowResults } from "./ShowResults";
 import { Scoreboard } from "./Scoreboard";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 const MySwal = withReactContent(Swal)
+window.MySwal = MySwal;
+
+window.Toast = MySwal.mixin({
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 5000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.onmouseenter = Swal.stopTimer;
+    toast.onmouseleave = Swal.resumeTimer;
+  }
+});
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -44,26 +58,85 @@ const COLORS_CHOICES = [
   { name: "Yellow", letter: "Y", hex: "#F1C40F" }
 ];
 
+//TODO: fare dei test per controllare che tutti gli AFK
 // an onject used as an enum (since we don't have enums in JS)
 const GameStates = Object.freeze({
-  NOT_CREATED: 'Not Created - the user hasnt clicked the createGame button or join one',
-  AWAITING_CREATION: 'Awaiting Creation - the user has requested the creation of the game. Waiting for the SC to confirm its creation.',
-  CREATED: 'Created and Awaiting Opponent - the user has created a game, but there is still not an opponent. waiting for someone to join.',
-  AWAITING_JOIN_CONFIRMATION: 'Awaiting Join Confirmation - the user has requested to join a game. Waiting for the SC to confirm its joining.',
-  JOINED: 'Joined, Opponent Found - there are finally 2 players in this game',
-  AWAITING_YOUR_COMMIT: 'Awaiting Your Commit - the other player is waiting for you to commit the secret code',
-  AWAITING_OPPONENTS_COMMIT: 'Awaiting Other Player Commit - we are waiting for the other player to commit the secret code',
-  AWAITING_YOUR_GUESS: 'Awaiting Your Guess - we have recieved the event CodeCommitted and it is your turn to guess.',
-  AWAITING_OPPONENTS_GUESS: 'Awaiting Other Player Guess - we are waiting for the other player to guess',
-  AWAITING_YOUR_FEEDBACK: 'Awaiting Your Feedback - it is your turn to give feedback.',
-  AWAITING_OPPONENTS_FEEDBACK: 'Awaiting Other Player Feedback - we are waiting for the other player to give feedback',
-  AWAITING_YOUR_REVEAL: 'Awaiting Your Reveal - it is your turn to reveal the secret code.',
-  AWAITING_OPPONENTS_REVEAL: 'Awaiting Other Player Reveal - we are waiting for the other player to reveal the secret code',
-  AWAITING_OPPONENTS_DISPUTE: 'Awaiting Other Player to choose to dispute or not',
-  AWAITING_YOUR_DISPUTE: 'Awaiting for you to choose to dispute or not',
-  AWAITING_FEEDBACK_FOR_YOUR_DISPUTE: 'You choose to dispute. Waiting for the SC to tell us if you have won or not.',
-  AWAITING_YOUR_DISPUTE_DENIED: 'You choose not to dispute. Waiting for the SC to tell us the number of turns left.',
-  GAME_ENDED_SHOW_RESULTS: 'Game ended - we can now show the results',
+  NOT_CREATED: {
+    description: 'Not Created - the user hasnt clicked the createGame button or join one',
+    showAfkButton: false,
+  },
+  AWAITING_CREATION: {
+    description: 'Awaiting Creation - the user has requested the creation of the game. Waiting for the SC to confirm its creation.',
+    showAfkButton: false,
+  },
+  CREATED: {
+    description: 'Created and Awaiting Opponent - the user has created a game, but there is still not an opponent. waiting for someone to join.',
+    showAfkButton: false,
+  },
+  AWAITING_JOIN_CONFIRMATION: {
+    description: 'Awaiting Join Confirmation - the user has requested to join a game. Waiting for the SC to confirm its joining.',
+    showAfkButton: false,
+  },
+  JOINED_WAITING_OPPONENTS_START: {
+    description: 'I Joined - waiting for the other player to start the game',
+    showAfkButton: true,
+  },
+  JOINED_WAITING_YOUR_START: {
+    description: 'Another player JOINED - waiting for you to start the game',
+    showAfkButton: false
+  },
+  AWAITING_YOUR_COMMIT: {
+    description: 'Awaiting Your Commit - the other player is waiting for you to commit the secret code',
+    showAfkButton: false,
+  },
+  AWAITING_OPPONENTS_COMMIT: {
+    description: 'Awaiting Other Player Commit - we are waiting for the other player to commit the secret code',
+    showAfkButton: true,
+  },
+  AWAITING_YOUR_GUESS: {
+    description: 'Awaiting Your Guess - we have received the event CodeCommitted and it is your turn to guess.',
+    showAfkButton: false,
+  },
+  AWAITING_OPPONENTS_GUESS: {
+    description: 'Awaiting Other Player Guess - we are waiting for the other player to guess',
+    showAfkButton: true,
+  },
+  AWAITING_YOUR_FEEDBACK: {
+    description: 'Awaiting Your Feedback - it is your turn to give feedback.',
+    showAfkButton: false,
+  },
+  AWAITING_OPPONENTS_FEEDBACK: {
+    description: 'Awaiting Other Player Feedback - we are waiting for the other player to give feedback',
+    showAfkButton: true,
+  },
+  AWAITING_YOUR_REVEAL: {
+    description: 'Awaiting Your Reveal - it is your turn to reveal the secret code.',
+    showAfkButton: false,
+  },
+  AWAITING_OPPONENTS_REVEAL: {
+    description: 'Awaiting Other Player Reveal - we are waiting for the other player to reveal the secret code',
+    showAfkButton: true,
+  },
+  AWAITING_OPPONENTS_DISPUTE: {
+    description: 'Awaiting Other Player to choose to dispute or not',
+    showAfkButton: true,
+  },
+  AWAITING_YOUR_DISPUTE: {
+    description: 'Awaiting for you to choose to dispute or not',
+    showAfkButton: false,
+  },
+  AWAITING_FEEDBACK_FOR_YOUR_DISPUTE: {
+    description: 'You choose to dispute. Waiting for the SC to tell us if you have won or not.',
+    showAfkButton: false,
+  },
+  AWAITING_YOUR_DISPUTE_DENIED: {
+    description: 'You choose not to dispute. Waiting for the SC to tell us the number of turns left.',
+    showAfkButton: false,
+  },
+  GAME_ENDED_SHOW_RESULTS: {
+    description: 'Game ended - we can now show the results',
+    showAfkButton: false,
+  }
 });
 
 
@@ -81,6 +154,7 @@ export class Dapp extends React.Component {
     // initial state of the dApp
     this.initialState = {
       userAddress: undefined, // The current user's address
+      opponentAddress: undefined,
       transactionError: undefined,
       networkError: undefined,
       colorsData: COLORS_CHOICES,
@@ -146,11 +220,11 @@ export class Dapp extends React.Component {
     }
 
     if (this.colorsVerified === false) {
-      return <Loading message={"Verifying colors..."} />
+      return <Loading gameID={this.state.currentGameID} message={"Verifying colors..."} showAfkButton={this.state.gameState.showAfkButton} opponent={this.state.opponentAddress}/>
     }
 
     if (this.state.gameState === GameStates.AWAITING_CREATION) {
-      return <Loading message={"Waiting for the Smart Contract to create the game..."} />
+      return <Loading gameID={this.state.currentGameID}  message={"Waiting for the Smart Contract to create the game..."} showAfkButton={this.state.gameState.showAfkButton} opponent={this.state.opponentAddress}/>
     }
 
     // JOIN OR CREATE A GAME
@@ -188,6 +262,7 @@ export class Dapp extends React.Component {
               updateGameState={(gameState) => this.setState({ gameState })}
               GameStates={GameStates}
               ethers={ethers}
+              updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
             />
 
             <hr />
@@ -198,6 +273,7 @@ export class Dapp extends React.Component {
               contract={this._contract}
               updateGameState={(gameState) => this.setState({ gameState })}
               GameStates={GameStates}
+              updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
             />
 
             {this.state.transactionError && (
@@ -226,13 +302,24 @@ export class Dapp extends React.Component {
     }
 
     if (this.state.gameState === GameStates.AWAITING_JOIN_CONFIRMATION) {
-      return <Loading message={"You are joining the game..."} />
+      return <Loading gameID={this.state.currentGameID}  message={"You are joining the game..."} showAfkButton={this.state.gameState.showAfkButton} opponent={this.state.opponentAddress}/>
     }
 
 
-    // 2 PLAYERS ARE IN THE GAME
-    if (this.state.gameState === GameStates.JOINED) {
-      return <Loading message={"Waiting for the game to start..."} />
+    if (this.state.gameState === GameStates.JOINED_WAITING_OPPONENTS_START) {
+      return <Loading gameID={this.state.currentGameID}  
+        message={"Waiting for the opponent to start the game..."}
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+      />
+    }
+
+    if (this.state.gameState === GameStates.JOINED_WAITING_YOUR_START) {
+      return <Loading gameID={this.state.currentGameID}  
+        message={"Waiting for you to start the game..."}
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+      />
     }
 
 
@@ -263,7 +350,11 @@ export class Dapp extends React.Component {
     // THE GAME HAS STARTED, waiting for opponent's commit
     if (this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
       return (
-        <Loading message={"Waiting for the other platyer to commit their secret code..."} />
+        <Loading gameID={this.state.currentGameID}  
+        message={"Waiting for the other platyer to commit their secret code..."}
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+        />
 
       );
     }
@@ -289,7 +380,12 @@ export class Dapp extends React.Component {
     // WAITING FOR OPPONENTS' GUESS
     if (this.state.gameState === GameStates.AWAITING_OPPONENTS_GUESS) {
       return (
-        <Loading message={"Waiting for the other player to make their guess..."} />
+        <Loading 
+        gameID={this.state.currentGameID} 
+        message={"Waiting for the other player to make their guess..."} 
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+        />
 
       );
     }
@@ -297,20 +393,30 @@ export class Dapp extends React.Component {
 
     if (this.state.gameState === GameStates.AWAITING_OPPONENTS_FEEDBACK) {
       return (
-        <Loading message={"Waiting for the other player to give feedback on your guess..."} />
+        <Loading gameID={this.state.currentGameID} 
+        message={"Waiting for the other player to give feedback on your guess..."}
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+        />
       );
     }
 
     if (this.state.gameState === GameStates.AWAITING_YOUR_FEEDBACK) {
       return (
-        <Loading message={"Recieved the opponent's guess. Giving feedback..."} />
+        <Loading gameID={this.state.currentGameID} 
+        message={"Recieved the opponent's guess. Giving feedback..."}
+        showAfkButton={this.state.gameState.showAfkButton}
+        opponent={this.state.opponentAddress}
+        />
       );
     }
 
     if (this.state.gameState === GameStates.AWAITING_OPPONENTS_REVEAL) {
       return (
-        <Loading
+        <Loading gameID={this.state.currentGameID} 
           message={"Waiting for the other player to reveal their secret code..."}
+          showAfkButton={this.state.gameState.showAfkButton}
+          opponent={this.state.opponentAddress}
         />
       );
     }
@@ -341,7 +447,11 @@ export class Dapp extends React.Component {
     if (this.state.gameState == GameStates.AWAITING_OPPONENTS_DISPUTE) {
       return (
         <article>
-          <Loading message={"Waiting for the other player to choose if they want to make a dispute"} />
+          <Loading gameID={this.state.currentGameID} 
+          message={"Waiting for the other player to choose if they want to make a dispute"}
+          showAfkButton={this.state.gameState.showAfkButton}
+          opponent={this.state.opponentAddress}
+          />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
       );
@@ -351,7 +461,11 @@ export class Dapp extends React.Component {
     if (this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE_DENIED) {
       return (
         <article>
-          <Loading message={"Waiting for next phase..."} />
+          <Loading gameID={this.state.currentGameID} 
+          message={"Waiting for next phase..."}
+          showAfkButton={this.state.gameState.showAfkButton}
+          opponent={this.state.opponentAddress}
+          />
           <p>Guesses left: {this.state.guessesLeft}. Turns left: {this.state.turnsLeft}</p>
         </article>
       );
@@ -362,7 +476,11 @@ export class Dapp extends React.Component {
     if (this.state.gameState === GameStates.AWAITING_FEEDBACK_FOR_YOUR_DISPUTE) {
       return (
         <article>
-          <Loading message={"Waiting for the smart contract to decide who wins the dispute..."} />
+          <Loading gameID={this.state.currentGameID} 
+          message={"Waiting for the smart contract to decide who wins the dispute..."}
+          showAfkButton={this.state.gameState.showAfkButton}
+          opponent={this.state.opponentAddress}
+          />
         </article>
       );
     }
@@ -408,6 +526,8 @@ export class Dapp extends React.Component {
       MastermindArtifact.abi,
       this._ethersProvider.getSigner(0)
     );
+
+    window.contract = this._contract;
 
     // FETCHING DATA
     // fetch some data from the contract
@@ -471,16 +591,25 @@ export class Dapp extends React.Component {
       });
     });
 
+    this._contract.on("GameEnded", async (eventGameID) => {
+      if (!addressesEqual(eventGameID, this.state.currentGameID)) return;
+      this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
+    });
+
     // I JOINED THE GAME, OR SOMEONE ELSE JOINED THE GAME
     // listen to the EVENT that is fired when any player joins any game. TODO: is it any?
-    this._contract.on("GameJoined", (eventGameID, player) => {
-
+    this._contract.on("GameJoined", async (eventGameID, player) => {
 
       if (this.state.gameState == GameStates.CREATED) {
-        if (this.state.currentGameID != eventGameID.toNumber()) return;
+        if (!addressesEqual(eventGameID, this.state.currentGameID)) return;
+        if (addressesEqual(player, this.state.userAddress)) return;
 
-        this.setState({ gameState: GameStates.JOINED });
+        this.setState({ gameState: GameStates.JOINED_WAITING_YOUR_START });
+
         this.setState({ currentGameID: eventGameID.toNumber() });
+
+        const oppAddress = await this._contract.getOpponent(eventGameID);
+        this.setState({ opponentAddress: oppAddress });
 
         this._contract.startGame(this.state.currentGameID, {
           gasLimit: 100000
@@ -490,7 +619,7 @@ export class Dapp extends React.Component {
       if (this.state.gameState == GameStates.AWAITING_JOIN_CONFIRMATION) {
         if (!addressesEqual(player, this.state.userAddress)) return;
 
-        this.setState({ gameState: GameStates.JOINED });
+        this.setState({ gameState: GameStates.JOINED_WAITING_OPPONENTS_START });
         this.setState({ currentGameID: eventGameID.toNumber() });
       }
 
@@ -499,9 +628,8 @@ export class Dapp extends React.Component {
 
     // the game is started and the roles have been assigned
     this._contract.on("GameStarted", (eventGameID, codeMakerAddress) => {
-      if (this.state.gameState != GameStates.JOINED) return;
       if (this.state.currentGameID != eventGameID) {
-        console.log("Recieved a GameStarted event for a game that is not the current game. Ignoring. The current game is: ", this.state.currentGameID, " and the event's gameID is: ", eventGameID.toNumber());
+        console.log("Someone else started a game. Ignoring.");
         return;
       }
 
@@ -513,6 +641,17 @@ export class Dapp extends React.Component {
         this.setState({ gameState: GameStates.AWAITING_OPPONENTS_COMMIT });
       }
 
+    });
+
+    this._contract.on("AFKAccusation", async (accusedUser, blocksLeft) => {
+
+      if (!addressesEqual(accusedUser, this.state.userAddress)) return;
+      window.Toast.fire({
+        icon: "warning",
+        title: "AFK warning. Make a move!",
+        text: `Make a move in ${blocksLeft} blocks, or you will be declared as AFK.`,
+        time: 10000,
+      });
     });
 
 

@@ -5,7 +5,7 @@ import Swal from 'sweetalert2'
 import withReactContent from 'sweetalert2-react-content'
 const MySwal = withReactContent(Swal);
 
-export function FindRandomGame({ contract, ethers, updateGameState, GameStates }) {
+export function FindRandomGame({ contract, ethers, updateGameState, GameStates, updateOpponentAddress }) {
     const [errorMessage, setErrorMessage] = useState('');
 
     async function handleClick() {
@@ -56,6 +56,7 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
             if (userChoice.isConfirmed) {
                 await contract.joinGame(gameID, { value: gameStake });
                 updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
+                updateOpponentAddress(creatorAddress);
             } else if (userChoice.isDenied) {
                 return;
             }
