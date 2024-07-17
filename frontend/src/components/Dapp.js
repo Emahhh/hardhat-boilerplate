@@ -317,7 +317,9 @@ export class Dapp extends React.Component {
           <button
             onClick={
               function () {
-                this._contract.dontDispute(this.state.currentGameID);
+                this._contract.dontDispute(this.state.currentGameID, {
+                  gasLimit: 100000
+                });
                 this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
               }
             }
@@ -599,7 +601,9 @@ export class Dapp extends React.Component {
         alert("L'altro sembra aver barato! ora facciamo ricorso"); // TODO: handle RICORSO
       } else {
         alert("Tutto regolare! Non facciamo ricorso");
-        this._contract.dontDispute(eventGameID);
+        this._contract.dontDispute(eventGameID, {
+          gasLimit: 100000
+        });
         this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
         this.refreshTurnsAndGuessesLeft();
       }
