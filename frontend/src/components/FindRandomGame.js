@@ -19,7 +19,15 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
                 alert("Please try again in a few seconds! The smart contract is not ready yet.");
                 return;
             }
-            alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
+            
+            const creatorAddress = await contract.getCreator(gameID);
+
+            if (!creatorAddress ||creatorAddress == ethers.constants.AddressZero) {
+                alert("Errror getting creator.");
+                return;
+            }
+
+            alert(`We found a game with ID: ${gameID} created by ${creatorAddress}. The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
 
             await contract.joinGame(gameID, { value: gameStake });
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);

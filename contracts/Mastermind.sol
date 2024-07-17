@@ -119,6 +119,12 @@ contract Mastermind {
 
 
     // GETTERS ----------------
+    // creator address
+    function getCreator(uint gameId) public view returns (address) {
+        Game storage game = games[gameId];
+        return game.creator;
+    }
+
     function getCreatorScore(uint gameId) public view returns (uint256) {
         Game storage game = games[gameId];
         return game.creatorScore;
