@@ -10,7 +10,7 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
 
     async function handleClick() {
         try {
-            const gameID =  Number(await contract.getRandomGameWithOnePlayer());
+            const gameID =  Number(await contract.getRandomGameWithOnePlayer((Math.random() * 100).toFixed(0)));
 
             if (!gameID) {
                 alert("No games found. Please try again in a few seconds!");
@@ -31,6 +31,7 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates }
                 return;
             }
             
+            // TODO: fare tutti gli alert così con SweetAlert
             const userChoice = await 
             MySwal.fire({
                 title: "Wanna join this game?",

@@ -208,9 +208,9 @@ contract Mastermind {
 
 
 
-    function getRandomGameWithOnePlayer() external view returns (uint) {
+    function getRandomGameWithOnePlayer(uint8 seed) external view returns (uint) {
         require(gamesWithOnePlayer.length > 0, "No games with only one player available");
-        uint randomIndex = uint(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % gamesWithOnePlayer.length;
+        uint randomIndex = uint(keccak256(abi.encodePacked(block.timestamp, block.prevrandao, seed))) % gamesWithOnePlayer.length;
         return gamesWithOnePlayer[randomIndex];
     }
 
