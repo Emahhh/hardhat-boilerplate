@@ -3,6 +3,11 @@ import React from "react";
 // We'll use ethers to interact with the Ethereum network and our contract
 import { ethers } from "ethers";
 
+import Swal from 'sweetalert2'
+import withReactContent from 'sweetalert2-react-content'
+
+
+
 // DEFINE THE CONTRACT'S ADDRESS AND ABI
 // We import the contract's artifacts and address here, as we are going to be using them with ethers
 import MastermindArtifact from "../contracts/Mastermind.json";
@@ -22,6 +27,8 @@ import { CommitSecretCode } from "./CommitSecretCode";
 import { MakeGuess } from "./MakeGuess";
 import { ShowResults } from "./ShowResults";
 import { Scoreboard } from "./Scoreboard";
+
+const MySwal = withReactContent(Swal)
 
 // This is the default id used by the Hardhat Network
 const HARDHAT_NETWORK_ID = '31337';
@@ -175,7 +182,6 @@ export class Dapp extends React.Component {
             <hr />
             <h4>Find a random Game</h4>
 
-            {/* TODO: implement*/}
             <FindRandomGame
               contract={this._contract}
               updateGameState={(gameState) => this.setState({ gameState })}
@@ -599,6 +605,11 @@ export class Dapp extends React.Component {
 
       if (this.didTheyCheat(secretCode)) {
         alert("L'altro sembra aver barato! ora facciamo ricorso"); // TODO: handle RICORSO
+        MySwal.fire({ // TODO: change
+          title: "The Internet?",
+          text: "That thing is still around?",
+          icon: "question"
+        });
       } else {
         alert("Tutto regolare! Non facciamo ricorso");
         this._contract.dontDispute(eventGameID, {
