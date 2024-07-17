@@ -6,7 +6,7 @@ export function ShowResults({ contract, gameId, currUser }) {
     useEffect(() => {
         const fetchWinner = async () => {
             try {
-                const winner = await contract.winner(gameId);
+                const winner = await contract.getWinner(gameId);
                 setWinner(winner);
             } catch (error) {
                 console.error('Error fetching winner:', error);

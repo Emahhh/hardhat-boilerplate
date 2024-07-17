@@ -84,6 +84,7 @@ contract Mastermind {
     event CodeGuessedUnsccessfully(uint gameId, address codeMakerAddress, uint8 guessesLeft, uint8 correctColorAndPosition, uint8 correctColorWrongPosition);
     event DisputeDenied(uint gameId, address codeMakerAddress, uint8 turnsLeft);
     event AFKAccusation(address accusedUser, uint deadlineTimestamp);
+    event DisputeVerdict(uint gameId, address winner);
 
 
 
@@ -168,7 +169,6 @@ contract Mastermind {
     }
 
     // Function to view the winner of the game
-    // TODO. cambia client per usare questo
     function getWinner(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
         require(game.state == GameState.Ended, "The game has not finished yet!");
@@ -387,22 +387,29 @@ contract Mastermind {
             }
         }
         
-        if(correctCode || !feedbacksAreCorrect) {
+        if(!feedbacksAreCorrect) {
             console.log("!!! The result of the dispute is: the CodeBreaker was right! The Codemaker cheated. Sending stake to the CodeBreaker.");
 
+            //TODO: estrai in una funzione interna privata
             game.state = GameState.Ended;
             address payable winnerAdd = payable(codeBreakerAddress(gameId));
+            game.winner = winnerAdd;
+
             uint stakeAmount = game.stake * 2;
             bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
             require(sent, "Failed to send Ether");
+            emit DisputeVerdict(gameId, codeBreakerAddress(gameId));
 
         } else {
             console.log("!!! The result of the dispute is: the CodeBreaker was wrong and accused of cheating! Sending stake to the Codemaker.");
             game.state = GameState.Ended;
             address payable winnerAdd = payable(game.codeMakerAddress);
+            game.winner = winnerAdd;
+
             uint stakeAmount = game.stake * 2;
             bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
             require(sent, "Failed to send Ether");
+            emit DisputeVerdict(gameId, game.codeMakerAddress);
         }
     }
 
@@ -430,12 +437,12 @@ contract Mastermind {
         }
 
 
-        game.turnsCounter++;
         uint8 turnsLeft = NT_num_of_turns - game.turnsCounter;
+        game.turnsCounter++;
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
-            address payable winnerAdd = payable(getWinner(gameId));
+            address payable winnerAdd = payable(getWinner(gameId)); // TODO: controllare che il numero di turni sia giusto, perché avevo ottenuto errore Error: reverted with reason string 'No winner set!'
             console.log ("!!! The game ended! The winner is: ", winnerAdd);
 
             // Transfer the stake to the winner TODO: fare una funzione "redeem"?

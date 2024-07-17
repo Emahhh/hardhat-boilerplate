@@ -61,6 +61,7 @@ const GameStates = Object.freeze({
   AWAITING_OPPONENTS_REVEAL: 'Awaiting Other Player Reveal - we are waiting for the other player to reveal the secret code',
   AWAITING_OPPONENTS_DISPUTE: 'Awaiting Other Player to choose to dispute or not',
   AWAITING_YOUR_DISPUTE: 'Awaiting for you to choose to dispute or not',
+  AWAITING_FEEDBACK_FOR_YOUR_DISPUTE: 'You choose to dispute. Waiting for the SC to tell us if you have won or not.',
   AWAITING_YOUR_DISPUTE_DENIED: 'You choose not to dispute. Waiting for the SC to tell us the number of turns left.',
   GAME_ENDED_SHOW_RESULTS: 'Game ended - we can now show the results',
 });
@@ -314,7 +315,7 @@ export class Dapp extends React.Component {
       );
     }
 
-    // SEND A DISPUTE
+    // SEND A DISPUTE TODO: ma serve o non si apre mai?
     // se mi viene detto che non ho indovinato, ho qualche secondo per fare una disputa, o accettare il fatto che non ho indovinato
     if (this.state.gameState === GameStates.AWAITING_YOUR_DISPUTE) {
       return (
@@ -355,6 +356,15 @@ export class Dapp extends React.Component {
         </article>
       );
 
+    }
+
+
+    if (this.state.gameState === GameStates.AWAITING_FEEDBACK_FOR_YOUR_DISPUTE) {
+      return (
+        <article>
+          <Loading message={"Waiting for the smart contract to decide who wins the dispute..."} />
+        </article>
+      );
     }
 
     if (this.state.gameState === GameStates.GAME_ENDED_SHOW_RESULTS) {
@@ -601,28 +611,54 @@ export class Dapp extends React.Component {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_REVEAL && this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
-      console.log("The other player has revealed their secret code!");
+      // options to choose from. they specify which feedback i want to dispute.
+      const myInputOptions = {};
+      let i =0;
+      for (const f of this.state.myGuessesAndFeedbacks){
+        const value = `guessId: ${i}, Your guess was ${f.guess}. The feedback was ${f.correctColorAndPosition} correct color and ${f.correctColorWrongPosition} correct color wrong position`; //TODO: cambia in " i think they cheated in feedback 1..."
+        myInputOptions[i] = value;
+        i++;
+      }
 
-      if (this.didTheyCheat(secretCode)) {
-        alert("L'altro sembra aver barato! ora facciamo ricorso"); // TODO: handle RICORSO
-        MySwal.fire({ // TODO: change
-          title: "The Internet?",
-          text: "That thing is still around?",
-          icon: "question"
-        });
-      } else {
-        alert("Tutto regolare! Non facciamo ricorso");
+      console.log(`this.state.myGuessesAndFeedbacks: ${this.state.myGuessesAndFeedbacks}`);
+      console.log(`myInputOptions: ${myInputOptions}`);
+
+      const userChoice = await 
+      MySwal.fire({
+          title: "Wanna open a dispute?",
+          text: "The other player has revealed their secret code. They claim that the code is " + secretCode + ". Do you want to open a dispute? If so, please select the feedback you want to dispute.",
+          icon: "question",
+          showDenyButton: true,
+          confirmButtonText: 'Yes',
+          denyButtonText: 'No',
+          input: "select",
+          inputOptions: myInputOptions,
+      });
+
+      if (userChoice.isConfirmed) {
+        const guessId = userChoice?.value;
+        console.log("Selected choice, guessId: " + guessId);
+        if (guessId === undefined) alert("Error, no guessId option selected");
+        this._contract.dispute(eventGameID, guessId, {
+          gasLimit: 100000
+        })
+        this.setState({ gameState: GameStates.AWAITING_FEEDBACK_FOR_YOUR_DISPUTE });
+        return;
+      } else if (userChoice.isDenied) {
         this._contract.dontDispute(eventGameID, {
           gasLimit: 100000
         });
         this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
         this.refreshTurnsAndGuessesLeft();
+        return;
       }
+
+
     });
 
 
     this._contract.on("DisputeDenied", (eventGameID, codeMaker, turnsLeft) => {
-      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_DISPUTE && this.state.gameState != GameStates.AWAITING_YOUR_DISPUTE_DENIED) return;
+      if (this.state.gameState != GameStates.AWAITING_OPPONENTS_DISPUTE && this.state.gameState != GameStates.AWAITING_YOUR_DISPUTE_DENIED && this.state.gameState != GameStates.AWAITING_FEEDBACK_FOR_YOUR_DISPUTE) return;
       if (this.state.currentGameID != eventGameID) return;
 
       if (turnsLeft == 0) {
@@ -637,6 +673,28 @@ export class Dapp extends React.Component {
         }
 
       }
+    });
+
+    this._contract.on("DisputeVerdict", (gameId, winner) => {
+      if (this.state.currentGameID != gameId) return;
+      const amWinner = addressesEqual(this.state.userAddress, winner);
+
+      if (amWinner) {
+        this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
+        MySwal.fire({
+          title: "You won the dispute!",
+          text: "The smart contract decided that you were right.",
+          icon: "success",
+        })
+      } else {
+        MySwal.fire({
+          title: "You lost the dispute!",
+          text: "The smart contract decided that you were wrong.",
+          icon: "error",
+        })
+        this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
+      }
+      
     });
 
 
