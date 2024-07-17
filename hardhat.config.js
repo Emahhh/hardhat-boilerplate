@@ -2,9 +2,10 @@ require("@nomicfoundation/hardhat-toolbox");
 
 require("./tasks/faucet");
 
+console.log("Hardhat configuration loaded!");
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.17",
   networks: {
     hardhat: {
       mining: {
@@ -13,11 +14,14 @@ module.exports = {
       },
     },
   },
-  settings: {
-    optimizer: {
-      enabled: true,
-      runs: 200
-    },
-    viaIR: true
-  }
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      },
+      
+    }
+  },
 };

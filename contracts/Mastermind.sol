@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
 import "hardhat/console.sol";
@@ -65,7 +66,7 @@ contract Mastermind {
     }
 
     // storage for all the different games
-    mapping(uint => Game) public games;
+    mapping(uint => Game) games;
     uint public gameCount;
 
     // storage for games with only one player, used for to get a random game id to join
@@ -151,12 +152,13 @@ contract Mastermind {
 
         // TODO: what if tie?
         if (game.opponentScore > game.creatorScore) {
+            game.state = GameState.Ended;
             return game.creator;
         } else {
+            game.state = GameState.Ended;
             return game.opponent;
         }
 
-        game.state = GameState.Ended;
     }
 
     // Function to view the winner of the game
@@ -202,7 +204,7 @@ contract Mastermind {
 
     function getRandomGameWithOnePlayer() external view returns (uint) {
         require(gamesWithOnePlayer.length > 0, "No games with only one player available");
-        uint randomIndex = uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty))) % gamesWithOnePlayer.length;
+        uint randomIndex = uint(keccak256(abi.encodePacked(block.timestamp, block.prevrandao))) % gamesWithOnePlayer.length;
         return gamesWithOnePlayer[randomIndex];
     }
 
@@ -284,7 +286,7 @@ contract Mastermind {
 
         // TODO: Validate feedback
         uint256 guessesCounterUint256 = uint256(game.guessesCounter);
-        string memory guess = game.currentTurnGuesses[guessesCounterUint256-1];
+        // string memory guess = game.currentTurnGuesses[guessesCounterUint256-1];
         game.currentTurnFeedbacks[guessesCounterUint256-1] = Feedback(correctColorAndPosition, correctColorWrongPosition); // -1 perché ho già aumentato il contatore di 1 in makeGuess
 
         game.phase = TurnPhase.Guess;
@@ -479,6 +481,8 @@ contract Mastermind {
         } else {
             require(false, "Error: Unknown TurnPhase");
         }
+
+        return address(0);
     }
 
     // Function to start accusing AFK
