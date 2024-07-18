@@ -17,8 +17,6 @@ import contractAddress from "../contracts/contract-address.json";
 import { NoWalletDetected } from "./NoWalletDetected";
 import { ConnectWallet } from "./ConnectWallet";
 import { Loading } from "./Loading";
-import { TransactionErrorMessage } from "./TransactionErrorMessage";
-import { WaitingForTransactionMessage } from "./WaitingForTransactionMessage";
 import { FindRandomGame } from "./FindRandomGame";
 import { JoinGameWithAddress } from "./JoinGameWithAddress";
 import { WalletInfo } from "./WalletInfo";
@@ -317,13 +315,13 @@ export class Dapp extends React.Component {
     // GAME CREATED, WAIT FOR ANOTHER PLAYER
     if (this.state.gameState === GameStates.CREATED) {
       return (
-        <div className="row">
-          <div className="col-12">
+        <>
+          <article>
             <h1>Game created!</h1>
             <p>The game ID is: {this.state.currentGameID}</p>
             <p>Waiting for another player to join...</p>
-          </div>
-        </div>
+          </article>
+        </>
       );
     }
 
@@ -377,7 +375,7 @@ export class Dapp extends React.Component {
     if (this.state.gameState === GameStates.AWAITING_OPPONENTS_COMMIT) {
       return (
         <Loading gameID={this.state.currentGameID}  
-        message={"Waiting for the other platyer to commit their secret code..."}
+        message={"Waiting for the other player to commit their secret code..."}
         showAfkButton={this.state.gameState.showAfkButton}
         opponent={this.state.opponentAddress}
         />
@@ -457,7 +455,7 @@ export class Dapp extends React.Component {
             onClick={
               function () {
                 this._contract.dontDispute(this.state.currentGameID, {
-                  gasLimit: 100000
+                  gasLimit: 500000
                 });
                 this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
               }
@@ -726,7 +724,10 @@ export class Dapp extends React.Component {
         console.log("Feedback given successfully. correctColorAndPosition:", correctColorAndPosition, "correctColorWrongPosition:", correctColorWrongPosition);
 
         if (correctColorAndPosition == this.state.codeLen) {
-          alert("THE OTHER PLAYER HAS GUESSED CORRECTLY!");
+          window.Toast.fire({
+            icon: "warning",
+            title: "The other player guessed correctly!",
+          })
           await this._contract.revealCode(eventGameID, this.state.secretCode);
           this.setState({ gameState: GameStates.AWAITING_OPPONENTS_DISPUTE });
         } else if (turnsLeft == 0) {
@@ -751,7 +752,11 @@ export class Dapp extends React.Component {
       if (this.state.gameState != GameStates.AWAITING_OPPONENTS_FEEDBACK) return;
       if (this.state.currentGameID != eventGameID) return;
 
-      alert("Your guess was correct! Congratulations!"); 
+      window.Toast.fire({
+        icon: "success",
+        title: "Your guess was correct! Congratulations!",
+      });
+      
       this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
     });
 
@@ -760,10 +765,16 @@ export class Dapp extends React.Component {
       if (this.state.currentGameID != eventGameID) return;
 
       if (guessesLeft == 0) {
-        alert("Your guess was not correct, and you have run out of guesses.");
+        window.Toast.fire({
+          icon: "warning",
+          title: "Your guess was not correct, but you have no more guesses left.",
+        })
         this.setState({ gameState: GameStates.AWAITING_OPPONENTS_REVEAL });
       } else {
-        alert("Your guess was not correct, but you have " + guessesLeft + " guesses left!");
+        window.Toast.fire({
+          icon: "info",
+          title: "Your guess was not correct, but you have " + guessesLeft + " guesses left.",
+        });
         this.setState({ guessesLeft: guessesLeft });
         this.setState({ gameState: GameStates.AWAITING_YOUR_GUESS });
       }
@@ -815,7 +826,7 @@ export class Dapp extends React.Component {
         return;
       } else if (userChoice.isDenied) {
         this._contract.dontDispute(eventGameID, {
-          gasLimit: 100000
+          gasLimit: 500000
         });
         this.setState({ gameState: GameStates.AWAITING_YOUR_DISPUTE_DENIED });
         this.refreshTurnsAndGuessesLeft();
@@ -831,7 +842,10 @@ export class Dapp extends React.Component {
       if (this.state.currentGameID != eventGameID) return;
 
       if (turnsLeft == 0) {
-        alert("Gioco finito!");
+        window.MySwal.fire({
+          title: "Game ended!",
+          icon: "info",
+        });
         this.setState({ gameState: GameStates.GAME_ENDED_SHOW_RESULTS });
       } else {
         if (addressesEqual(this.state.userAddress, codeMaker)) {

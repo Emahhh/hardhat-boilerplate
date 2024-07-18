@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
-
 require("./tasks/faucet");
+require("hardhat-gas-reporter");
+
 
 console.log("Hardhat configuration loaded!");
 
@@ -24,4 +25,10 @@ module.exports = {
       
     }
   },
+  gasReporter: {
+    enabled: true,
+    currency: "EUR", // currency to show
+  },
+    
+    
 };

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { getRpcErrorMessage } from "../utils";
+
 
 export function Loading({ message, showAfkButton, gameID, opponent }) {
   const [turnOffButton, setTurnOffButton] = useState(false);
@@ -22,7 +24,7 @@ export function Loading({ message, showAfkButton, gameID, opponent }) {
         icon: "error",
         text: error.message,
       });
-      console.error("AFK error:", error);
+      console.error("AFK error:", getRpcErrorMessage(error));
     }
   }
 
@@ -70,27 +72,45 @@ export function Loading({ message, showAfkButton, gameID, opponent }) {
   }, [accusationStarted]);
 
   return (
-    <div className="container">
-      <article>
-        <span aria-busy="true">{message}</span>
-        {showAfkButton && !accusationStarted && (
-          <button
-            disabled={turnOffButton}
-            onClick={handleAfkClick}
-            data-tooltip="Accuse the other player of AFK. They'll have a certain amount of time to make their move, starting from the press of this button."
-          >
-            Accuse of AFK
-          </button>
-        )}
-        {accusationStarted && (
-          <div>
-            <button onClick={handleEndAccuseAfkClick}>
-              End AFK Accusation
-            </button>
-            <div>Time elapsed since accusation: {timeElapsed} seconds</div>
-          </div>
-        )}
-      </article>
+<div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-100">
+  <article className="w-full max-w-md p-6 bg-white rounded-lg shadow-lg">
+    <div className="text-center">
+      <span
+        aria-busy="true"
+        className="text-lg font-semibold text-gray-700 !text-wrap"
+      >
+        {message}
+      </span>
     </div>
+
+    {/* AFK Button */}
+    {showAfkButton && !accusationStarted && (
+      <div className="mt-6 text-center">
+        <button
+          disabled={turnOffButton}
+          onClick={handleAfkClick}
+          className="px-4 py-2 transition duration-300 ease-in-out rounded-lg shadow disabled:bg-gray-300"
+        >
+          Accuse of AFK
+        </button>
+      </div>
+    )}
+
+    {/* Accusation Status */}
+    {accusationStarted && (
+      <div className="mt-6 text-center">
+        <button
+          onClick={handleEndAccuseAfkClick}
+          className="px-4 py-2 transition duration-300 ease-in-out rounded-lg shadow"
+        >
+          End AFK Accusation
+        </button>
+        <div className="mt-4 text-gray-600">
+          Time elapsed since accusation: <span className="font-semibold">{timeElapsed} seconds</span>
+        </div>
+      </div>
+    )}
+  </article>
+</div>
   );
 }

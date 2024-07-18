@@ -13,14 +13,21 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates, 
             const gameID =  Number(await contract.getRandomGameWithOnePlayer((Math.random() * 100).toFixed(0)));
 
             if (!gameID) {
-                alert("No games found. Please try again in a few seconds!");
+                window.MySwal.fire({
+                    title: "No games found. Please try again in a few seconds!",
+                    icon: "error",
+                  });
                 return;
             }
 
             let gameStake = 0;
             gameStake = Number(await contract.getGameStake(gameID));
             if (gameStake == 0) {
-                alert("Please try again in a few seconds! The smart contract is not ready yet.");
+                window.MySwal.fire({
+                    title: "Please try again in a few seconds!",
+                    text: "The smart contract is not ready yet.",
+                    icon: "error",
+                });
                 return;
             }
 
@@ -70,7 +77,11 @@ export function FindRandomGame({ contract, ethers, updateGameState, GameStates, 
             }
 
             if (error?.message && error?.message.includes("No games with only one player available")) {
-                alert("No games found. Please try again in a few seconds!");
+                window.MySwal.fire({
+                    title: "No games found.",
+                    text: "Please try again in a while!",
+                    icon: "error",
+                });
             }
         }
     }

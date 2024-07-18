@@ -13,14 +13,24 @@ export function JoinGameWithAddress({ contract, updateGameState, GameStates, upd
             let gameStake = 0;
             gameStake = await contract.getGameStake(gameID);
             if (gameStake == 0) {
-                alert("Please try again in a few seconds! The smart contract is not ready yet.");
+                window.MySwal.fire({
+                    title: "Please try again in a few seconds!",
+                    text: "The smart contract is not ready yet.",
+                    icon: "error", 
+                });
                 return;
             }
-            alert(`The other player has decided a steak of ${gameStake} Wei. Do you want to join?`);
-            // TODO: make em choose
-            
-            // Join the game
 
+            const { isConfirmed } = await window.MySwal.fire({
+                title: "Wanna join?",
+                text: "The other player has decided a stake of " + gameStake + " Wei.",
+                icon: "info",
+                showCancelButton: true,
+            });
+            
+            if (!isConfirmed) return;
+
+            // Join the game
             await contract.joinGame(gameID, { value: gameStake });
             updateGameState(GameStates.AWAITING_JOIN_CONFIRMATION);
 
@@ -28,7 +38,11 @@ export function JoinGameWithAddress({ contract, updateGameState, GameStates, upd
             updateOpponentAddress(opponentAddress);
         } catch (error) {
             const errorMessage = getRpcErrorMessage(error);
-            alert("Error joining game:", errorMessage);
+            window.MySwal.fire({
+                title: "Error joining game",
+                text: errorMessage,
+                icon: "error",
+            });
             console.error("Error joining game:", error);
         }
     }

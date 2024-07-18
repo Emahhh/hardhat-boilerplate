@@ -187,18 +187,7 @@ contract Mastermind {
         console.log ("!!! The game ended! The winner is: ", winner);
     }
 
-    // Function to compute the winner of the game
-    function computeWinnerBasedOnScore(uint gameId) public returns (address payable) {
-        Game storage game = games[gameId];
 
-        // TODO: what if tie?
-        if (game.opponentScore > game.creatorScore) {
-            return payable(game.creator);
-        } else {
-            return payable(game.opponent);
-        }
-
-    }
 
     // Function to view the winner of the game
     function getWinner(uint gameId) public view returns (address) {
@@ -502,12 +491,12 @@ contract Mastermind {
         }
 
 
-        uint8 turnsLeft = NT_num_of_turns - game.turnsCounter;
         game.turnsCounter++;
+        uint8 turnsLeft = NT_num_of_turns - game.turnsCounter;
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
-            address payable winnerAdd = payable(computeWinnerBasedOnScore(gameId)); // TODO: controllare che il numero di turni sia giusto, perché avevo ottenuto errore Error: reverted with reason string 'No winner set!'
+            address payable winnerAdd = payable(computeWinnerBasedOnScore(gameId));
             setWinnerAndEndGame(gameId, winnerAdd);
         } else {
             // prepare for next turn
@@ -520,6 +509,18 @@ contract Mastermind {
         emit DisputeDenied(gameId, game.codeMakerAddress, turnsLeft);
         console.log("!!! The CodeBreaker doesnt want to dispte. Moving to the next turn. Fired DisputeDenied event. Game ID: ", gameId);
         resetAFKAccusation(gameId);
+
+    }
+
+    // Function to compute the winner of the game
+    function computeWinnerBasedOnScore(uint gameId) public returns (address payable) {
+        Game storage game = games[gameId];
+        
+        if (game.opponentScore > game.creatorScore) {
+            return payable(game.creator);
+        } else {
+            return payable(game.opponent);
+        }
 
     }
 
