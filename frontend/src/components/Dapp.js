@@ -27,7 +27,6 @@ import { CommitSecretCode } from "./CommitSecretCode";
 import { MakeGuess } from "./MakeGuess";
 import { ShowResults } from "./ShowResults";
 import { Scoreboard } from "./Scoreboard";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 const MySwal = withReactContent(Swal)
 window.MySwal = MySwal;
@@ -244,18 +243,7 @@ export class Dapp extends React.Component {
 
             <hr />
 
-            <h4>Create a Game</h4>
-            <CreateNewGame
-              contract={this._contract}
-              ethers={ethers}
-              updateGameState={(gameState) => this.setState({ gameState })}
-              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
-              GameStates={GameStates}
-              currentGameID={this.state.currentGameID}
-            />
-
-            <hr />
-            <h4>Find a random Game</h4>
+            <h4>Join a random public Game</h4>
 
             <FindRandomGame
               contract={this._contract}
@@ -267,7 +255,35 @@ export class Dapp extends React.Component {
 
             <hr />
 
-            <h4>Join an existing Game</h4>
+
+            <h4>Create a public Game</h4>
+            <CreateNewGame
+              isPrivate={false}
+              contract={this._contract}
+              ethers={ethers}
+              updateGameState={(gameState) => this.setState({ gameState })}
+              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
+              GameStates={GameStates}
+              currentGameID={this.state.currentGameID}
+            />
+
+            <hr />
+
+
+            <h4>Create a private Game</h4>
+            <CreateNewGame
+              isPrivate={true}
+              contract={this._contract}
+              ethers={ethers}
+              updateGameState={(gameState) => this.setState({ gameState })}
+              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
+              GameStates={GameStates}
+              currentGameID={this.state.currentGameID}
+            />
+
+            <hr />
+
+            <h4>Join a private Game</h4>
 
             <JoinGameWithAddress
               contract={this._contract}
@@ -275,6 +291,13 @@ export class Dapp extends React.Component {
               GameStates={GameStates}
               updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
             />
+
+
+
+
+            <hr />
+
+
 
             {this.state.transactionError && (
               <TransactionErrorMessage

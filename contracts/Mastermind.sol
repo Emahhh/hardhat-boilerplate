@@ -36,7 +36,9 @@ contract Mastermind {
 
     struct Game {
         address creator;
+        address allowedOpponent; // address(0) if anyone can join the game. If not address(0), only this address can join.
         address opponent;
+
         uint256 stake;
         bytes32 secretHash;
         string secretCode;
@@ -183,12 +185,14 @@ contract Mastermind {
     }
 
 
-    function createGame() external payable {
+    function createGame(address addr) external payable {
         require(msg.value > 0, "Stake must be greater than 0");
+        require(addr != msg.sender, "You cannot play against yourself!");
 
         gameCount++;
         Game storage myGame = games[gameCount];
-
+        
+        myGame.allowedOpponent = addr;
         myGame.creator = msg.sender;
         myGame.opponent = address(0);
         myGame.stake = msg.value;
@@ -205,9 +209,12 @@ contract Mastermind {
         myGame.lastActionTimestamp = 0;
 
 
-        // Add game ID to array and mapping
-        gamesWithOnePlayer.push(gameCount);
-        gameIdToIndex[gameCount] = gamesWithOnePlayer.length - 1;
+        // if anyone can join this game
+        // i add this game to the list of games anyone can pick randomly
+        if (myGame.allowedOpponent == address(0)) {
+            gamesWithOnePlayer.push(gameCount);
+            gameIdToIndex[gameCount] = gamesWithOnePlayer.length - 1;
+        }
 
         console.log("!!! Game created with ID: ", gameCount);
         resetAFKAccusation(gameCount);
@@ -229,23 +236,30 @@ contract Mastermind {
     // TODO: mostrare la stake prima di partire
     function joinGame(uint gameId) external payable inState(gameId, GameState.Created) {
         Game storage game = games[gameId];
-        require(msg.sender != game.creator, "You can't play against yourself!");
         require(msg.value == game.stake, "Stake must match the creator's stake");
+        require(msg.sender != game.creator, "You can't play against yourself!");
+        require(game.allowedOpponent == address(0) || game.allowedOpponent == msg.sender, "This game is reserved for another opponent");
+
 
         game.opponent = msg.sender;
         game.state = GameState.Joined;
 
-        // Remove game ID from array and mapping
-        uint index = gameIdToIndex[gameId];
-        uint lastGameId = gamesWithOnePlayer[gamesWithOnePlayer.length - 1];
+        // if the game was public, I have to remove it from the free games list
+        if(game.allowedOpponent == address(0)) {
+            // Remove game ID from array and mapping
+            require(gamesWithOnePlayer.length >= 1, "Array of games with only one player is empty");
+            uint index = gameIdToIndex[gameId];
+            uint lastGameId = gamesWithOnePlayer[gamesWithOnePlayer.length - 1];
 
-        // Move the last element to the index of the element to be removed
-        gamesWithOnePlayer[index] = lastGameId;
-        gameIdToIndex[lastGameId] = index;
+            // Move the last element to the index of the element to be removed
+            gamesWithOnePlayer[index] = lastGameId;
+            gameIdToIndex[lastGameId] = index;
 
-        // Remove the last element
-        gamesWithOnePlayer.pop();
-        delete gameIdToIndex[gameId];
+            // Remove the last element
+            gamesWithOnePlayer.pop();
+            delete gameIdToIndex[gameId];
+        }
+
         resetAFKAccusation(gameId);
 
         emit GameJoined(gameId, msg.sender);

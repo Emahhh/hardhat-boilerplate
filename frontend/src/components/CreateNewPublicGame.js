@@ -1,34 +1,26 @@
 import React, { useState } from "react";
 
 
-export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, GameStates, updateGameID }) {
+export function CreateNewGame({ contract, ethers, updateGameState, GameStates, updateGameID }) {
     const [amount, setAmount] = useState("");
-    const [oppAddressInput, setOppAddressInput] = useState("");
     const [error, setError] = useState("");
     const amountInEth = amount ? ethers.utils.formatEther(amount) : 0;
 
     async function createGame() {
         try {
 
-            // to create a public game, i have to pass an empty address
-            if (!isPrivate) {
-                const emptyAddress = ethers.constants.AddressZero;
-                setOppAddressInput(emptyAddress);
-                console.log("emptyAddress:", emptyAddress);
-            }
-
-            if (isPrivate && !oppAddressInput) {
+            if (!oppAddressInput) {
                 setError("Opponent address is required");
                 return;
             }
 
-            if (isPrivate &&!ethers.utils.isAddress(oppAddressInput)) {
+            if (!ethers.utils.isAddress(oppAddressInput)) {
                 setError("Opponent address is not a valid address");
                 return;
             }
 
             const amountInWei = ethers.utils.parseUnits(amount, "wei");
-
+            
             if (amountInWei.isZero()) {
                 setError("Amount must be greater than 0");
                 return;
@@ -36,14 +28,12 @@ export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, Ga
 
             // Send the transaction to create a new game
             const tx = await contract.createGame(oppAddressInput, { value: amountInWei });
-
+            
             // Update game state to awaiting creation
             updateGameState(GameStates.AWAITING_CREATION);
-
+            
             // Wait for the transaction to be mined
             await tx.wait();
-
-            console.log("Game created, reserved for address:", oppAddressInput);
 
         } catch (error) {
             alert("Error creating game:", error);
@@ -58,16 +48,12 @@ export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, Ga
 
     return (
         <div>
-            {isPrivate &&
-                <>
-                    <label>Opponent Address</label>
-                    <input
-                        type="text"
-                        value={oppAddressInput}
-                        onChange={(event) => setOppAddressInput(event.target.value)}
-                    />
-                </>
-            }
+            <label>Opponent Address</label>
+            <input
+                type="text"
+                value={oppAddressInput}
+                onChange={(event) => setOppAddressInput(event.target.value)}
+            />
             <label htmlFor="stakeAmount">Enter Stake Amount (in Wei):</label>
             <input
                 type="number"
