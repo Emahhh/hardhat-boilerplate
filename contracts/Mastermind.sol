@@ -153,6 +153,20 @@ contract Mastermind {
         Game storage game = games[gameId];
         return (NG_num_of_guesses - game.guessesCounter, NT_num_of_turns - game.turnsCounter);
     }
+
+    function getGame(uint gameId) external view returns (Game memory) {
+        return games[gameId];
+    }
+
+    function getCodeMakerAddress(uint gameId) external view returns (address) {
+        Game storage game = games[gameId];
+        return game.codeMakerAddress;
+    }
+
+    function getCodebreakerAddress(uint gameId) external view returns (address) {
+        return codeBreakerAddress(gameId);
+    }
+
     // END OF GETTERS ----------
 
 
