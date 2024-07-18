@@ -384,7 +384,7 @@ contract Mastermind {
     }
 
     function isCodeLegal(string memory secretCode) public view returns (bool) {
-        require(secretCode.length == N_len_of_code, "Invalid secret code length");
+        require(bytes(secretCode).length == N_len_of_code, "Invalid secret code length");
         
         // check that every character inside secretCode is also inside string[] public colors = ["R", "G", "B", "Y"];
         bytes memory codeBytes = bytes(secretCode);
@@ -572,7 +572,7 @@ contract Mastermind {
         game.accusationTimestamp = nowTimestamp;
 
         uint deadlineTimestamp = nowTimestamp + TIME_DISPUTE_BLOCKS;
-        emit AFKAccusation(accusedUser, TIME_DISPUTE_BLOCKS);
+        emit AFKAccusation(accusedUser, deadlineTimestamp);
     }
 
     // Function to reset AFK accusation status

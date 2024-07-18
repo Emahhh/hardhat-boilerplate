@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { getRpcErrorMessage } from "../utils";
 
 
 export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, GameStates, updateGameID }) {
@@ -9,13 +10,7 @@ export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, Ga
 
     async function createGame() {
         try {
-
-            // to create a public game, i have to pass an empty address
-            if (!isPrivate) {
-                const emptyAddress = ethers.constants.AddressZero;
-                setOppAddressInput(emptyAddress);
-                console.log("emptyAddress:", emptyAddress);
-            }
+            const emptyAddress = ethers.constants.AddressZero;
 
             if (isPrivate && !oppAddressInput) {
                 setError("Opponent address is required");
@@ -35,7 +30,8 @@ export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, Ga
             }
 
             // Send the transaction to create a new game
-            const tx = await contract.createGame(oppAddressInput, { value: amountInWei });
+            const oppAdd = isPrivate ? oppAddressInput : emptyAddress;
+            const tx = await contract.createGame(oppAdd, { value: amountInWei });
 
             // Update game state to awaiting creation
             updateGameState(GameStates.AWAITING_CREATION);
@@ -43,10 +39,15 @@ export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, Ga
             // Wait for the transaction to be mined
             await tx.wait();
 
-            console.log("Game created, reserved for address:", oppAddressInput);
+            console.log("Game created, reserved for address:", oppAdd);
 
         } catch (error) {
-            alert("Error creating game:", error);
+            console.log(error);
+            window.MySwal.fire({
+                icon: "error",
+                title: "Error",
+                text: getRpcErrorMessage(error),
+            })
             updateGameState(GameStates.NOT_CREATED);
         }
     }

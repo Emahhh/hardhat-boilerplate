@@ -620,7 +620,7 @@ export class Dapp extends React.Component {
     });
 
     // I JOINED THE GAME, OR SOMEONE ELSE JOINED THE GAME
-    // listen to the EVENT that is fired when any player joins any game. TODO: is it any?
+    // listen to the EVENT that is fired when any player joins any game.
     this._contract.on("GameJoined", async (eventGameID, player) => {
 
       if (this.state.gameState == GameStates.CREATED) {
@@ -666,15 +666,50 @@ export class Dapp extends React.Component {
 
     });
 
-    this._contract.on("AFKAccusation", async (accusedUser, blocksLeft) => {
+    this._contract.on("AFKAccusation", async (accusedUser, deadlineTimestamp) => {
 
       if (!addressesEqual(accusedUser, this.state.userAddress)) return;
+
       window.Toast.fire({
         icon: "warning",
         title: "AFK warning. Make a move!",
-        text: `Make a move in ${blocksLeft} blocks, or you will be declared as AFK.`,
-        time: 10000,
+        text: `Make a move soon, or you will be declared as AFK.`,
+        time: 4, // TODO: unknown parameter
       });
+
+      // wait 3 seconds
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      let currBlock = await this._ethersProvider.getBlockNumber();
+      let diff = deadlineTimestamp - currBlock;
+      console.log("deadline: " + deadlineTimestamp + ", currBlock: " + currBlock + ", diff: " + diff);
+      window.Toast.fire({
+        icon: "warning",
+        title: diff + " blocks left!",
+        text: `Make a move!`,
+        time: 2,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      currBlock = await this._ethersProvider.getBlockNumber();
+      diff = deadlineTimestamp - currBlock;
+      window.Toast.fire({
+        icon: "warning",
+        title: diff + " blocks left!",
+        text: `Make a move!`,
+        time: 2,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      currBlock = await this._ethersProvider.getBlockNumber();
+      diff = deadlineTimestamp - currBlock;
+      window.Toast.fire({
+        icon: "warning",
+        title: diff + " blocks left!",
+        text: `Make a move!`,
+        time: 2,
+      });
+
     });
 
 
