@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getRpcErrorMessage } from "../utils";
+import { getRpcErrorMessage } from "../utils"; // TODO: usarla ovunque
 
 
 export function CreateNewGame({ isPrivate, contract, ethers, updateGameState, GameStates, updateGameID }) {

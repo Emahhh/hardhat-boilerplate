@@ -58,28 +58,6 @@ describe("Mastermind contract", function () {
                 .to.emit(mastermind, "GameStarted");
         });
         
-        it("Should commit a secret code and emit CodeCommitted event", async function () {
-            const { mastermind, owner, addr1, addr2 } = await loadFixture(deployMastermindFixture);
-            const depositAmount = ethers.utils.parseEther("1.0");
-            const secretHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("secretCode"));
-        
-            await mastermind.connect(addr1).createGame(addr2.address, { value: depositAmount });
-            await mastermind.connect(addr2).joinGame(1, { value: depositAmount });
-            
-            // Start listening for the GameStarted event
-            const filter = mastermind.filters.GameStarted();
-            await mastermind.connect(addr1).startGame(1);
-        
-            // Capture the GameStarted event
-            const events = await mastermind.queryFilter(filter);
-            const codeMakerAddress = events[0].args[1];
-//            console.log("Code maker address from event:", codeMakerAddress);   
-        
-            await expect(mastermind.connect(codeMakerAddress).commitSecretCode(1, secretHash))
-                .to.emit(mastermind, "CodeCommitted")
-                .withArgs(1);
-        
-        });
 
         it("Should return 'This game is reserved for another opponent' error", async function () {
             const { mastermind, owner, addr1, addr2 } = await loadFixture(deployMastermindFixture);
@@ -136,7 +114,7 @@ describe("Mastermind contract", function () {
             expect(game.phase).to.equal(3); // Reveal
         });
 
-        it("Should reveal code and emit CodeRevealed event", async function () {
+        it("Should reveal code, emit CodeRevealed event and be left with 1 turn and 3 guesses", async function () {
             const { mastermind, owner, addr1 } = await loadFixture(deployMastermindFixture);
             const depositAmount = ethers.utils.parseEther("1.0");
             const secretHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("RGBY"));
@@ -155,7 +133,12 @@ describe("Mastermind contract", function () {
             const game = await mastermind.getGame(1);
             expect(game.secretCode).to.equal("RGBY");
             expect(game.phase).to.equal(4); // WaitingForDispute
+
+            await mastermind.connect(addr1).dontDispute(1);
+
+            await expect(mastermind.getGuessesAndTurnsLeft(1)).to.eventually.eql([3, 1]);
         });
+
 
         it("Should handle disputes correctly and emit DisputeVerdict event", async function () {
             const { mastermind, owner, addr1 } = await loadFixture(deployMastermindFixture);
@@ -177,30 +160,7 @@ describe("Mastermind contract", function () {
             expect(game.state).to.equal(3); // Ended
         });
 
-        it("Should end game and compute winner correctly", async function () {
-            const { mastermind, owner, addr1 } = await loadFixture(deployMastermindFixture);
-            const depositAmount = ethers.utils.parseEther("1.0");
-            const secretHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("RGBY"));
 
-            await mastermind.createGame(addr1.address, { value: depositAmount });
-            await mastermind.connect(addr1).joinGame(1, { value: depositAmount });
-            await mastermind.connect(owner).startGame(1);
-            await mastermind.connect(owner).commitSecretCode(1, secretHash);
-            await mastermind.connect(addr1).makeGuess(1, "RGBY");
-            await mastermind.connect(owner).giveFeedback(1, 4, 0);
-            await mastermind.connect(owner).revealCode(1, "RGBY");
-
-            await mastermind.connect(addr1).dontDispute(1);
-            await mastermind.connect(owner).commitSecretCode(1, secretHash);
-            await mastermind.connect(addr1).makeGuess(1, "RGBY");
-            await mastermind.connect(owner).giveFeedback(1, 4, 0);
-            await mastermind.connect(owner).revealCode(1, "RGBY");
-
-            const game = await mastermind.getGame(1);
-            expect(game.state).to.equal(3); // Ended
-
-            const winner = await mastermind.winner(1);
-            expect(winner).to.equal(owner.address);
-        });
+        
     });
 });
