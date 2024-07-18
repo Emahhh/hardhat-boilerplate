@@ -230,6 +230,9 @@ To mitigate these vulnerabilities, it would be recommended to use the `SafeMath
 ## Tests and gas report
 Here follows the output of the tests and the gas report.
 
+
+Note: due to hardcoding of the codeMaker address, if running the tests, it might be necessary to run it a couple of times untill they all pass. This is because the codeMaker is randomly extracted by the contract.
+
 ```
 Hardhat configuration loaded!
 
