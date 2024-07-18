@@ -53,7 +53,6 @@ contract Mastermind {
         Feedback[NG_num_of_guesses] currentTurnFeedbacks;
 
         uint accusationTimestamp;
-        uint lastActionTimestamp;
         address winner;
     }
 
@@ -206,7 +205,6 @@ contract Mastermind {
         myGame.guessesCounter = 0;
         myGame.turnsCounter = 0;
         myGame.accusationTimestamp = 0;
-        myGame.lastActionTimestamp = 0;
 
 
         // if anyone can join this game
@@ -289,19 +287,16 @@ contract Mastermind {
 
         resetAFKAccusation(gameId);
 
-        emit CodeCommitted(gameId, secretHash); // TODO: dire chi è il codemaker
+        emit CodeCommitted(gameId, secretHash);
         console.log("!!! Fired CodeCommitted event. Game ID: ", gameId);
     }
 
     function makeGuess(uint gameId, string memory guess) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Guess) {
         Game storage game = games[gameId];
-        // TODO: what if the codemaker tries to call thid function? build a test case on it
         require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can make guesses");
         uint8 guessesLeft = NG_num_of_guesses - game.guessesCounter;
         require(guessesLeft > 0, "No tries left");
 
-        // TODO: è necessario validare la lunghezza o è solo una spesa inutile di gas?
-        // require(guess.length == N, "Invalid guess length");
         uint256 guessesCounterUint256 = uint256(game.guessesCounter);
         game.currentTurnGuesses[guessesCounterUint256] = guess;
         game.guessesCounter++;
@@ -310,7 +305,7 @@ contract Mastermind {
 
         resetAFKAccusation(gameId);
 
-        emit CodeGuessed(gameId, guess, guessesLeft); // TODO: dire di chi è il turno di dare il feedback
+        emit CodeGuessed(gameId, guess, guessesLeft);
         console.log("!!! The codeBreaker has given their guess. emitting the event CodeGuessed");
     }
 
@@ -347,7 +342,10 @@ contract Mastermind {
     function revealCode(uint gameId, string memory secretCode) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.Reveal) {
         Game storage game = games[gameId];
         require(game.codeMakerAddress == msg.sender, "Only the CodeMaker can reveal the code");
-
+        
+        // performing checks on the validity of the code
+        // TODO: check if they work
+        require(isCodeLegal(secretCode), "The code submitted is not legal!");
         require(keccak256(bytes(secretCode)) == game.secretHash, "This secret code doesn't match the hash submitted initially! Did you try to cheat?");
 
         game.secretCode = secretCode;
@@ -357,9 +355,28 @@ contract Mastermind {
 
         emit CodeRevealed(gameId, secretCode);
         console.log("!!! The code has been revealed. Emitting CodeRevealed event. The code was: ", secretCode);
-        // TODO: call endTurn(gameId)? maybe after the second for dispute
-        // call endTurn after DISPUTE_SECONDS
+    }
 
+    function isCodeLegal(string memory secretCode) public view returns (bool) {
+        require(secretCode.length == N_len_of_code, "Invalid secret code length");
+        
+        // check that every character inside secretCode is also inside string[] public colors = ["R", "G", "B", "Y"];
+        bytes memory codeBytes = bytes(secretCode);
+
+        for (uint256 i = 0; i < codeBytes.length; i++) {
+            bool found = false;
+            for (uint256 j = 0; j < colors.length; j++) {
+                if (keccak256(abi.encodePacked(codeBytes[i])) == keccak256(abi.encodePacked(colors[j]))) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     // Request a dispute on a certain feedback. Checks which one of the player is trying to cheat, ends the game and gives the stake to the player that was right.
@@ -448,7 +465,7 @@ contract Mastermind {
     }
 
 
-    // TODO: QUI VA LA LOGICA PER LA ASSEGNAZIONE DEI PUNTI E DEL NUOVO TURNO
+
     function dontDispute(uint gameId) external onlyPlayers(gameId) inPhase(gameId, TurnPhase.WaitingForDispute) {
         Game storage game = games[gameId];
         require(codeBreakerAddress(gameId) == msg.sender, "Only the CodeBreaker can dispute");
@@ -479,7 +496,6 @@ contract Mastermind {
             address payable winnerAdd = payable(getWinner(gameId)); // TODO: controllare che il numero di turni sia giusto, perché avevo ottenuto errore Error: reverted with reason string 'No winner set!'
             console.log ("!!! The game ended! The winner is: ", winnerAdd);
 
-            // Transfer the stake to the winner TODO: fare una funzione "redeem"?
             uint stakeAmount = game.stake * 2;
             bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
             require(sent, "Failed to send Ether");
@@ -500,7 +516,6 @@ contract Mastermind {
             game.codeMakerAddress = codeBreakerAddress(gameId);
         }
 
-        // TODO: 
 
         emit DisputeDenied(gameId, game.codeMakerAddress, turnsLeft);
         console.log("!!! The CodeBreaker doesnt want to dispte. Moving to the next turn. Fired DisputeDenied event. Game ID: ", gameId);
@@ -514,6 +529,11 @@ contract Mastermind {
     function getCurrentActiveUser(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
         require(game.state == GameState.InProgress || game.state == GameState.Joined, "This game isnt in progress or joined");
+
+        if (game.state == GameState.Joined) {
+            // we are waiting for the cretor to call startGame()
+            return game.creator;
+        }
 
         // for each turnphase, I return the active user
         //enum TurnPhase { Commit, Guess, Feedback, Reveal, WaitingForDispute } 
@@ -545,7 +565,6 @@ contract Mastermind {
         require(accusedUser != msg.sender, "You cannot accuse yourself!");
         require(game.state == GameState.InProgress || game.state == GameState.Joined, "You can only accuse AFK if the game is in progress or joined (waiting to start)!");
         require(game.accusationTimestamp == 0, "You already accused of AFK!");
-        require(game.lastActionTimestamp == 0, "The opponent has already made their move!"); // TODO: pulire lastActionTimestamp se non serve più
 
         resetAFKAccusation(gameId);
 
@@ -557,11 +576,10 @@ contract Mastermind {
     }
 
     // Function to reset AFK accusation status
-    // Should be called when the TurnPhase changes // TODO: check that i did this everyehwere
+    // Should be called when the TurnPhase changes
     function resetAFKAccusation(uint gameId) internal {
         Game storage game = games[gameId];
         game.accusationTimestamp = 0;
-        // game.lastActionTimestamp = 0;
     }
 
     // Function to end AFK accusation and determine penalty
@@ -575,7 +593,6 @@ contract Mastermind {
         uint nowTimestamp = block.timestamp;
 
         require(nowTimestamp >= game.accusationTimestamp + TIME_DISPUTE_BLOCKS, "Not enough time passed since accusation! The opponent still has time to make their move.");
-        // require(game.lastActionTimestamp != 0 && nowTimestamp <= game.lastActionTimestamp + TIME_DISPUTE_BLOCKS, "Opponent made their move in time! AFK penalty cannot be confirmed.");
 
         // If all conditions met, declare the accuser as the winner TODO: manda soldi ecc 
         game.winner = msg.sender;
