@@ -58,7 +58,7 @@ contract Mastermind {
 
     function codeBreakerAddress(uint gameId) public view returns (address) {
         Game storage game = games[gameId];
-        return game.codeMakerAddress == game.creator ? game.opponent : game.creator;
+        return game.codeMakerAddress == game.creator ? game.opponent : game.creator; // if you're not the codeMaker, you're the CodeBreaker
     }
 
     struct Feedback {
@@ -155,21 +155,33 @@ contract Mastermind {
     // END OF GETTERS ----------
 
 
+    function setWinnerAndEndGame(uint gameId, address payable winner) private {
+        Game storage game = games[gameId];
 
+        require(game.winner == address(0), "Winner already set!");
+
+        uint stakeAmount = game.stake * 2;
+        bool sent = winner.send(stakeAmount); // Returns false on failure
+        require(sent, "Failed to send Ether");
+        game.stake = 0;
+
+
+
+        game.winner = winner;
+        game.state = GameState.Ended;
+        emit GameEnded(gameId, msg.sender);
+        console.log ("!!! The game ended! The winner is: ", winner);
+    }
 
     // Function to compute the winner of the game
-    function computeAndSetWinner(uint gameId) public returns (address) {
+    function computeWinnerBasedOnScore(uint gameId) public returns (address payable) {
         Game storage game = games[gameId];
-        require(game.winner == address(0), "Winner already set!");
-        require(game.state == GameState.Ended, "Game is not ended yet!");
 
         // TODO: what if tie?
         if (game.opponentScore > game.creatorScore) {
-            game.state = GameState.Ended;
-            return game.creator;
+            return payable(game.creator);
         } else {
-            game.state = GameState.Ended;
-            return game.opponent;
+            return payable(game.opponent);
         }
 
     }
@@ -439,26 +451,14 @@ contract Mastermind {
         
         if(!feedbacksAreCorrect) {
             console.log("!!! The result of the dispute is: the CodeBreaker was right! The Codemaker cheated. Sending stake to the CodeBreaker.");
-
-            //TODO: estrai in una funzione interna privata
-            game.state = GameState.Ended;
-            address payable winnerAdd = payable(codeBreakerAddress(gameId));
-            game.winner = winnerAdd;
-
-            uint stakeAmount = game.stake * 2;
-            bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
-            require(sent, "Failed to send Ether");
+            address payable winner = payable(codeBreakerAddress(gameId));
+            setWinnerAndEndGame(gameId, winner);
             emit DisputeVerdict(gameId, codeBreakerAddress(gameId));
 
         } else {
             console.log("!!! The result of the dispute is: the CodeBreaker was wrong and accused of cheating! Sending stake to the Codemaker.");
-            game.state = GameState.Ended;
-            address payable winnerAdd = payable(game.codeMakerAddress);
-            game.winner = winnerAdd;
-
-            uint stakeAmount = game.stake * 2;
-            bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
-            require(sent, "Failed to send Ether");
+            address payable winner = payable(game.codeMakerAddress);
+            setWinnerAndEndGame(gameId, winner);
             emit DisputeVerdict(gameId, game.codeMakerAddress);
         }
         resetAFKAccusation(gameId);
@@ -493,27 +493,13 @@ contract Mastermind {
 
         if (turnsLeft == 0) {
             game.state = GameState.Ended;
-            address payable winnerAdd = payable(getWinner(gameId)); // TODO: controllare che il numero di turni sia giusto, perché avevo ottenuto errore Error: reverted with reason string 'No winner set!'
-            console.log ("!!! The game ended! The winner is: ", winnerAdd);
-
-            uint stakeAmount = game.stake * 2;
-            bool sent = winnerAdd.send(stakeAmount); // Returns false on failure
-            require(sent, "Failed to send Ether");
-
-            console.log ("Successfully sent stake to: ", winnerAdd, ". Stake amount: ", stakeAmount);
-
-            // Reset the stake for the game
-            game.stake = 0;
-
+            address payable winnerAdd = payable(computeWinnerBasedOnScore(gameId)); // TODO: controllare che il numero di turni sia giusto, perché avevo ottenuto errore Error: reverted with reason string 'No winner set!'
+            setWinnerAndEndGame(gameId, winnerAdd);
         } else {
-
+            // prepare for next turn
+            game.guessesCounter = 0; // reset guesses and feedbacks
             game.phase = TurnPhase.Commit;
-
-            // reset guesses and feedbacks
-            game.guessesCounter = 0;
-
-            // Swap roles
-            game.codeMakerAddress = codeBreakerAddress(gameId);
+            game.codeMakerAddress = codeBreakerAddress(gameId); // Swap roles
         }
 
 
@@ -594,12 +580,10 @@ contract Mastermind {
 
         require(nowTimestamp >= game.accusationTimestamp + TIME_DISPUTE_BLOCKS, "Not enough time passed since accusation! The opponent still has time to make their move.");
 
-        // If all conditions met, declare the accuser as the winner TODO: manda soldi ecc 
-        game.winner = msg.sender;
-        game.state = GameState.Ended;
+        // If all conditions met, declare the accuser as the winner
+        setWinnerAndEndGame(gameId, payable(msg.sender));
 
         resetAFKAccusation(gameId);
-        emit GameEnded(gameId, msg.sender);
         return true;
     }
 
