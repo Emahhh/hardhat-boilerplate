@@ -568,7 +568,7 @@ contract Mastermind {
 
         resetAFKAccusation(gameId);
 
-        uint nowTimestamp = block.timestamp;
+        uint nowTimestamp = block.number;
         game.accusationTimestamp = nowTimestamp;
 
         uint deadlineTimestamp = nowTimestamp + TIME_DISPUTE_BLOCKS;

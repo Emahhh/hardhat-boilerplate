@@ -670,46 +670,15 @@ export class Dapp extends React.Component {
 
       if (!addressesEqual(accusedUser, this.state.userAddress)) return;
 
+      let currBlock = await this._ethersProvider.getBlockNumber();
+      let diff = deadlineTimestamp - currBlock;
+
       window.Toast.fire({
         icon: "warning",
         title: "AFK warning. Make a move!",
-        text: `Make a move soon, or you will be declared as AFK.`,
-        time: 4, // TODO: unknown parameter
+        text: `Make a move in ${diff} blocks, or you will be declared as AFK.`,
       });
-
-      // wait 3 seconds
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
-      let currBlock = await this._ethersProvider.getBlockNumber();
-      let diff = deadlineTimestamp - currBlock;
-      console.log("deadline: " + deadlineTimestamp + ", currBlock: " + currBlock + ", diff: " + diff);
-      window.Toast.fire({
-        icon: "warning",
-        title: diff + " blocks left!",
-        text: `Make a move!`,
-        time: 2,
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      currBlock = await this._ethersProvider.getBlockNumber();
-      diff = deadlineTimestamp - currBlock;
-      window.Toast.fire({
-        icon: "warning",
-        title: diff + " blocks left!",
-        text: `Make a move!`,
-        time: 2,
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      currBlock = await this._ethersProvider.getBlockNumber();
-      diff = deadlineTimestamp - currBlock;
-      window.Toast.fire({
-        icon: "warning",
-        title: diff + " blocks left!",
-        text: `Make a move!`,
-        time: 2,
-      });
-
+      
     });
 
 
