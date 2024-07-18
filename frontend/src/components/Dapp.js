@@ -230,82 +230,82 @@ export class Dapp extends React.Component {
     // if there is no game in progress, show buttons to join one
     if (this.state.gameState === GameStates.NOT_CREATED) {
       return (
-        <div className="container">
-          <article>
-
-            <h1>Welcome to Mastermind!</h1>
-
-            <hr />
-            <WalletInfo
-              provider={this._ethersProvider}
-              account={this.state.userAddress}
-            />
-
-            <hr />
-
-            <h4>Join a random public Game</h4>
-
-            <FindRandomGame
-              contract={this._contract}
-              updateGameState={(gameState) => this.setState({ gameState })}
-              GameStates={GameStates}
-              ethers={ethers}
-              updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
-            />
-
-            <hr />
-
-
-            <h4>Create a public Game</h4>
-            <CreateNewGame
-              isPrivate={false}
-              contract={this._contract}
-              ethers={ethers}
-              updateGameState={(gameState) => this.setState({ gameState })}
-              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
-              GameStates={GameStates}
-              currentGameID={this.state.currentGameID}
-            />
-
-            <hr />
-
-
-            <h4>Create a private Game</h4>
-            <CreateNewGame
-              isPrivate={true}
-              contract={this._contract}
-              ethers={ethers}
-              updateGameState={(gameState) => this.setState({ gameState })}
-              updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
-              GameStates={GameStates}
-              currentGameID={this.state.currentGameID}
-            />
-
-            <hr />
-
-            <h4>Join a private Game</h4>
-
-            <JoinGameWithAddress
-              contract={this._contract}
-              updateGameState={(gameState) => this.setState({ gameState })}
-              GameStates={GameStates}
-              updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
-            />
-
-
-
-
-            <hr />
-
-
-
-            {this.state.transactionError && (
-              <TransactionErrorMessage
-                message={this._getRpcErrorMessage(this.state.transactionError)}
-                dismiss={() => this._dismissTransactionError()}
+        <div className="container max-w-3xl p-6 mx-auto">
+          <article className="space-y-6">
+            <header className="text-center">
+              <h1 className="mb-4 text-3xl font-bold">Mastermind</h1>
+            </header>
+            
+            {/* Wallet Information */}
+            <section className="p-4 rounded-lg shadow-lg bg-slate-50">
+              <WalletInfo
+                provider={this._ethersProvider}
+                account={this.state.userAddress}
               />
-            )}
-
+            </section>
+            
+            <hr className="my-6" />
+            
+            {/* Join a Random Public Game */}
+            <section className="p-4 rounded-lg shadow-lg bg-slate-50">
+              <h4 className="mb-2 text-xl font-semibold">Join a Random Public Game</h4>
+              <p>You'll have the option to join a random game from the available.</p>
+              <FindRandomGame
+                contract={this._contract}
+                updateGameState={(gameState) => this.setState({ gameState })}
+                GameStates={GameStates}
+                ethers={ethers}
+                updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
+              />
+            </section>
+            
+            <hr className="my-6" />
+            
+            {/* Create a Public Game */}
+            <section className="p-4 rounded-lg shadow-lg bg-slate-50">
+              <h4 className="mb-2 text-xl font-semibold">Create a Public Game</h4>
+              <p>Anyone can join.</p>
+              <CreateNewGame
+                isPrivate={false}
+                contract={this._contract}
+                ethers={ethers}
+                updateGameState={(gameState) => this.setState({ gameState })}
+                updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
+                GameStates={GameStates}
+                currentGameID={this.state.currentGameID}
+              />
+            </section>
+            
+            <hr className="my-6" />
+            
+            {/* Create a Private Game */}
+            <section className="p-4 rounded-lg shadow-lg bg-slate-50">
+              <h4 className="mb-2 text-xl font-semibold">Create a Private Game</h4>
+              <p>Only the player you choose can join.</p>
+              <CreateNewGame
+                isPrivate={true}
+                contract={this._contract}
+                ethers={ethers}
+                updateGameState={(gameState) => this.setState({ gameState })}
+                updateGameID={(gameID) => this.setState({ currentGameID: gameID })}
+                GameStates={GameStates}
+                currentGameID={this.state.currentGameID}
+              />
+            </section>
+            
+            <hr className="my-6" />
+            
+            {/* Join a Private Game */}
+            <section className="p-4 rounded-lg shadow-lg bg-slate-50">
+              <h4 className="mb-2 text-xl font-semibold">Join a Private Game</h4>
+              <p>Enter the game ID to join. You can only join a game if the creator choose your address when creating a game.</p>
+              <JoinGameWithAddress
+                contract={this._contract}
+                updateGameState={(gameState) => this.setState({ gameState })}
+                GameStates={GameStates}
+                updateOpponentAddress={(opponentAddress) => this.setState({ opponentAddress })}
+              />
+            </section>
           </article>
         </div>
       );
