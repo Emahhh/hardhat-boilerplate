@@ -245,6 +245,9 @@ export class Dapp extends React.Component {
             </section>
             
             <hr className="my-6" />
+
+            <h3>Create or join a game</h3>
+            <p>Use one of the buttons below to create or join a game.</p>
             
             {/* Join a Random Public Game */}
             <section className="p-4 rounded-lg shadow-lg bg-slate-50">
